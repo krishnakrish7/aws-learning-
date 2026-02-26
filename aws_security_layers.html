@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Security Services — Visual Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0a0f1e; color: #fff; min-height: 100vh; padding: 30px 20px; }
+
+  h1 { text-align: center; font-size: 1.8rem; color: #fff; margin-bottom: 6px; letter-spacing: 1px; }
+  .subtitle { text-align: center; color: #8892a4; font-size: 0.95rem; margin-bottom: 40px; }
+
+  /* ── LAYERS ── */
+  .layers-wrapper { max-width: 960px; margin: 0 auto 50px; display: flex; flex-direction: column; gap: 0; }
+
+  .layer {
+    border-radius: 16px; padding: 28px 30px; position: relative;
+    border: 2px solid transparent; transition: transform 0.2s;
+  }
+  .layer:hover { transform: translateX(4px); }
+
+  .layer-1 { background: linear-gradient(135deg, #1a0a2e, #2d1040); border-color: #7c3aed; margin: 0 0px; }
+  .layer-2 { background: linear-gradient(135deg, #0a1e2e, #0d2d40); border-color: #0ea5e9; margin: 0 30px; }
+  .layer-3 { background: linear-gradient(135deg, #0a1e10, #0d2e1a); border-color: #10b981; margin: 0 60px; }
+
+  .layer-arrow {
+    text-align: center; font-size: 1.6rem; color: #4a5568; padding: 6px 0;
+    position: relative; z-index: 1;
+  }
+
+  .layer-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+  .layer-badge {
+    width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 1.3rem; font-weight: 800; flex-shrink: 0;
+  }
+  .badge-1 { background: #7c3aed; }
+  .badge-2 { background: #0ea5e9; }
+  .badge-3 { background: #10b981; }
+
+  .layer-title { font-size: 1.2rem; font-weight: 700; }
+  .layer-desc { font-size: 0.82rem; opacity: 0.7; margin-top: 2px; }
+
+  .title-1 { color: #c084fc; }
+  .title-2 { color: #38bdf8; }
+  .title-3 { color: #34d399; }
+
+  /* ── SERVICE CARDS ── */
+  .services { display: flex; gap: 14px; flex-wrap: wrap; }
+
+  .service-card {
+    flex: 1; min-width: 180px; border-radius: 12px; padding: 16px;
+    cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
+  }
+  .service-card:hover { transform: translateY(-3px); filter: brightness(1.15); }
+
+  .card-1 { background: rgba(124,58,237,0.2); border: 1px solid rgba(124,58,237,0.5); }
+  .card-2 { background: rgba(14,165,233,0.2); border: 1px solid rgba(14,165,233,0.5); }
+  .card-3 { background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.5); }
+
+  .card-icon { font-size: 1.6rem; margin-bottom: 8px; }
+  .card-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+  .card-tagline { font-size: 0.75rem; opacity: 0.75; line-height: 1.4; margin-bottom: 8px; }
+  .card-tag {
+    display: inline-block; font-size: 0.65rem; padding: 2px 8px;
+    border-radius: 20px; font-weight: 600; letter-spacing: 0.5px;
+  }
+  .tag-1 { background: rgba(124,58,237,0.4); color: #c084fc; }
+  .tag-2 { background: rgba(14,165,233,0.4); color: #38bdf8; }
+  .tag-3 { background: rgba(16,185,129,0.4); color: #34d399; }
+
+  /* ── COMPARISON TABLE ── */
+  .section-title {
+    text-align: center; font-size: 1.2rem; font-weight: 700;
+    color: #e2e8f0; margin-bottom: 20px; letter-spacing: 0.5px;
+  }
+
+  .compare-wrapper { max-width: 960px; margin: 0 auto 50px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th {
+    background: #1e2a3a; color: #94a3b8; font-weight: 600;
+    padding: 12px 14px; text-align: left; border-bottom: 2px solid #2d3748;
+    letter-spacing: 0.5px; font-size: 0.75rem; text-transform: uppercase;
+  }
+  td { padding: 12px 14px; border-bottom: 1px solid #1e2a3a; vertical-align: top; }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+  tr:last-child td { border-bottom: none; }
+
+  .badge-small {
+    display: inline-block; padding: 2px 10px; border-radius: 20px;
+    font-size: 0.7rem; font-weight: 600;
+  }
+  .b-perimeter { background: rgba(124,58,237,0.3); color: #c084fc; }
+  .b-detect    { background: rgba(14,165,233,0.3); color: #38bdf8; }
+  .b-audit     { background: rgba(16,185,129,0.3); color: #34d399; }
+  .yes { color: #34d399; font-weight: 700; }
+  .no  { color: #f87171; }
+  .svc-name { font-weight: 700; color: #e2e8f0; }
+
+  /* ── CONFUSION PAIRS ── */
+  .pairs-wrapper { max-width: 960px; margin: 0 auto 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .pair-card { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 20px; }
+  .pair-title { font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; font-weight: 600; }
+
+  .pair-row { display: flex; gap: 10px; }
+  .pair-item { flex: 1; border-radius: 10px; padding: 14px; }
+  .pair-vs { display: flex; align-items: center; color: #4b5563; font-weight: 700; font-size: 0.85rem; }
+
+  .p-purple { background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3); }
+  .p-blue   { background: rgba(14,165,233,0.15);  border: 1px solid rgba(14,165,233,0.3); }
+  .p-green  { background: rgba(16,185,129,0.15);  border: 1px solid rgba(16,185,129,0.3); }
+  .p-orange { background: rgba(251,146,60,0.15);  border: 1px solid rgba(251,146,60,0.3); }
+  .p-red    { background: rgba(248,113,113,0.15); border: 1px solid rgba(248,113,113,0.3); }
+  .p-yellow { background: rgba(250,204,21,0.15);  border: 1px solid rgba(250,204,21,0.3); }
+
+  .pair-service { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+  .pair-desc { font-size: 0.75rem; opacity: 0.8; line-height: 1.4; }
+  .pair-key { font-size: 0.7rem; margin-top: 6px; opacity: 0.6; font-style: italic; }
+
+  /* ── EXAM TIPS ── */
+  .tips-wrapper { max-width: 960px; margin: 0 auto 50px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .tip-card { background: #111827; border-left: 3px solid #f59e0b; border-radius: 10px; padding: 16px; }
+  .tip-label { font-size: 0.65rem; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .tip-q { font-size: 0.78rem; color: #9ca3af; margin-bottom: 8px; line-height: 1.5; font-style: italic; }
+  .tip-a { font-size: 0.8rem; color: #34d399; font-weight: 700; }
+  .tip-arrow { color: #4b5563; margin: 0 4px; }
+
+  /* ── MEMORY AID ── */
+  .memory-wrapper { max-width: 960px; margin: 0 auto 30px; background: #111827; border-radius: 16px; padding: 28px; border: 1px solid #1f2937; }
+  .memory-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 16px; }
+  .memory-item { text-align: center; }
+  .memory-emoji { font-size: 2rem; display: block; margin-bottom: 6px; }
+  .memory-name { font-size: 0.7rem; font-weight: 700; color: #e2e8f0; }
+  .memory-hint { font-size: 0.65rem; color: #6b7280; margin-top: 3px; line-height: 1.3; }
+
+  @media (max-width: 640px) {
+    .pairs-wrapper { grid-template-columns: 1fr; }
+    .tips-wrapper { grid-template-columns: 1fr; }
+    .memory-grid { grid-template-columns: repeat(4, 1fr); }
+    .layer-2 { margin: 0 10px; }
+    .layer-3 { margin: 0 20px; }
+    .services { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🔐 AWS Security Services</h1>
+<p class="subtitle">Visual Guide for AWS Solutions Architect Associate</p>
+
+<!-- ── THE 3 LAYERS ── -->
+<div class="layers-wrapper">
+
+  <!-- Layer 1 -->
+  <div class="layer layer-1">
+    <div class="layer-header">
+      <div class="layer-badge badge-1">1</div>
+      <div>
+        <div class="layer-title title-1">🛡️ PERIMETER — Stop threats getting IN</div>
+        <div class="layer-desc">Guards the boundary. Filters and blocks before traffic reaches your app.</div>
+      </div>
+    </div>
+    <div class="services">
+      <div class="service-card card-1">
+        <div class="card-icon">🧱</div>
+        <div class="card-name">AWS WAF</div>
+        <div class="card-tagline">Blocks malicious web requests — SQL injection, XSS, bad bots</div>
+        <span class="card-tag tag-1">Layer 7 • HTTP/HTTPS</span>
+      </div>
+      <div class="service-card card-1">
+        <div class="card-icon">🌊</div>
+        <div class="card-name">AWS Shield</div>
+        <div class="card-tagline">Stops DDoS flood attacks. Standard = free. Advanced = paid + DRT support</div>
+        <span class="card-tag tag-1">Layer 3/4/7 • DDoS</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer-arrow">▼</div>
+
+  <!-- Layer 2 -->
+  <div class="layer layer-2">
+    <div class="layer-header">
+      <div class="layer-badge badge-2">2</div>
+      <div>
+        <div class="layer-title title-2">🔍 DETECTION — Find threats INSIDE</div>
+        <div class="layer-desc">Monitors what's already in your environment. Finds threats and vulnerabilities.</div>
+      </div>
+    </div>
+    <div class="services">
+      <div class="service-card card-2">
+        <div class="card-icon">👁️</div>
+        <div class="card-name">GuardDuty</div>
+        <div class="card-tagline">Detects active threats — compromised EC2, unusual API calls, crypto mining</div>
+        <span class="card-tag tag-2">Threat Intelligence • ML</span>
+      </div>
+      <div class="service-card card-2">
+        <div class="card-icon">🔎</div>
+        <div class="card-name">Macie</div>
+        <div class="card-tagline">Finds sensitive data (PII, credit cards, passports) stored in S3 buckets</div>
+        <span class="card-tag tag-2">S3 Only • PII Detection</span>
+      </div>
+      <div class="service-card card-2">
+        <div class="card-icon">🩺</div>
+        <div class="card-name">Inspector</div>
+        <div class="card-tagline">Scans EC2, ECR images & Lambda for software vulnerabilities (CVEs)</div>
+        <span class="card-tag tag-2">Vulnerability Scanning</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer-arrow">▼</div>
+
+  <!-- Layer 3 -->
+  <div class="layer layer-3">
+    <div class="layer-header">
+      <div class="layer-badge badge-3">3</div>
+      <div>
+        <div class="layer-title title-3">📋 AUDIT — Know what HAPPENED</div>
+        <div class="layer-desc">Records every action and configuration change. Compliance and forensics.</div>
+      </div>
+    </div>
+    <div class="services">
+      <div class="service-card card-3">
+        <div class="card-icon">📜</div>
+        <div class="card-name">CloudTrail</div>
+        <div class="card-tagline">Logs every API call — who did what, when, from where. Full audit trail.</div>
+        <span class="card-tag tag-3">API Logging • WHO did WHAT</span>
+      </div>
+      <div class="service-card card-3">
+        <div class="card-icon">📐</div>
+        <div class="card-name">AWS Config</div>
+        <div class="card-tagline">Tracks resource configuration over time. Compliance rules and drift detection.</div>
+        <span class="card-tag tag-3">Config History • WHAT changed</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── COMPARISON TABLE ── -->
+<div class="compare-wrapper">
+  <div class="section-title">📊 All Services at a Glance</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Service</th>
+        <th>One-Line Summary</th>
+        <th>Layer</th>
+        <th>S3?</th>
+        <th>EC2?</th>
+        <th>Key Trigger Word</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="svc-name">🧱 WAF</span></td>
+        <td>Filter malicious HTTP/HTTPS requests</td>
+        <td><span class="badge-small b-perimeter">Perimeter</span></td>
+        <td><span class="yes">✓</span> via CF</td>
+        <td><span class="yes">✓</span> via ALB</td>
+        <td>SQL injection / XSS</td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">🌊 Shield</span></td>
+        <td>Block DDoS flood attacks</td>
+        <td><span class="badge-small b-perimeter">Perimeter</span></td>
+        <td><span class="yes">✓</span></td>
+        <td><span class="yes">✓</span></td>
+        <td>DDoS / volumetric attack</td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">👁️ GuardDuty</span></td>
+        <td>Detect active threats via log analysis</td>
+        <td><span class="badge-small b-detect">Detection</span></td>
+        <td><span class="yes">✓</span></td>
+        <td><span class="yes">✓</span></td>
+        <td>Compromised / suspicious activity</td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">🔎 Macie</span></td>
+        <td>Find PII and sensitive data in S3</td>
+        <td><span class="badge-small b-detect">Detection</span></td>
+        <td><span class="yes">✓ ONLY</span></td>
+        <td><span class="no">✗</span></td>
+        <td>PII / GDPR / sensitive data in S3</td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">🩺 Inspector</span></td>
+        <td>Scan for software vulnerabilities (CVEs)</td>
+        <td><span class="badge-small b-detect">Detection</span></td>
+        <td><span class="no">✗</span></td>
+        <td><span class="yes">✓</span></td>
+        <td>CVE / unpatched / vulnerability</td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">📜 CloudTrail</span></td>
+        <td>Log every API call in your account</td>
+        <td><span class="badge-small b-audit">Audit</span></td>
+        <td><span class="yes">✓</span></td>
+        <td><span class="yes">✓</span></td>
+        <td>Who deleted / who changed</td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">📐 Config</span></td>
+        <td>Track resource config changes + compliance</td>
+        <td><span class="badge-small b-audit">Audit</span></td>
+        <td><span class="yes">✓</span></td>
+        <td><span class="yes">✓</span></td>
+        <td>What did it look like before / compliant</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── COMMONLY CONFUSED PAIRS ── -->
+<div class="compare-wrapper">
+  <div class="section-title">⚠️ Commonly Confused Pairs — Exam Traps</div>
+</div>
+<div class="pairs-wrapper">
+
+  <div class="pair-card">
+    <div class="pair-title">🔴 Most Common Trap</div>
+    <div class="pair-row">
+      <div class="pair-item p-purple">
+        <div class="pair-service" style="color:#c084fc">📜 CloudTrail</div>
+        <div class="pair-desc">WHO did WHAT<br>API call logging</div>
+        <div class="pair-key">"Who deleted the bucket?"</div>
+      </div>
+      <div class="pair-vs">VS</div>
+      <div class="pair-item p-green">
+        <div class="pair-service" style="color:#34d399">📐 Config</div>
+        <div class="pair-desc">WHAT changed<br>Config history + compliance</div>
+        <div class="pair-key">"What did SG look like 3 months ago?"</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pair-card">
+    <div class="pair-title">🔴 Common Confusion</div>
+    <div class="pair-row">
+      <div class="pair-item p-blue">
+        <div class="pair-service" style="color:#38bdf8">👁️ GuardDuty</div>
+        <div class="pair-desc">Active THREATS<br>Is my account being attacked?</div>
+        <div class="pair-key">"EC2 talking to malicious IP"</div>
+      </div>
+      <div class="pair-vs">VS</div>
+      <div class="pair-item p-orange">
+        <div class="pair-service" style="color:#fb923c">🩺 Inspector</div>
+        <div class="pair-desc">Software VULNERABILITIES<br>Is my software patched?</div>
+        <div class="pair-key">"EC2 has unpatched CVE"</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pair-card">
+    <div class="pair-title">🟡 Frequently Mixed Up</div>
+    <div class="pair-row">
+      <div class="pair-item p-purple">
+        <div class="pair-service" style="color:#c084fc">🧱 WAF</div>
+        <div class="pair-desc">Filters BAD REQUESTS<br>SQL injection, XSS, Layer 7</div>
+        <div class="pair-key">"Malicious web traffic content"</div>
+      </div>
+      <div class="pair-vs">VS</div>
+      <div class="pair-item p-blue">
+        <div class="pair-service" style="color:#38bdf8">🌊 Shield</div>
+        <div class="pair-desc">Stops FLOOD of traffic<br>DDoS, volumetric</div>
+        <div class="pair-key">"Overwhelmed with requests"</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pair-card">
+    <div class="pair-title">🟡 S3 Specific</div>
+    <div class="pair-row">
+      <div class="pair-item p-green">
+        <div class="pair-service" style="color:#34d399">🔎 Macie</div>
+        <div class="pair-desc">S3 ONLY<br>Finds PII, credit cards, secrets</div>
+        <div class="pair-key">"Sensitive data in S3 / GDPR"</div>
+      </div>
+      <div class="pair-vs">VS</div>
+      <div class="pair-item p-blue">
+        <div class="pair-service" style="color:#38bdf8">👁️ GuardDuty</div>
+        <div class="pair-desc">Any resource<br>Unusual access patterns</div>
+        <div class="pair-key">"Suspicious S3 API calls"</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── EXAM SCENARIOS ── -->
+<div class="compare-wrapper">
+  <div class="section-title">🎯 Exam Scenario Quick-Fire</div>
+</div>
+<div class="tips-wrapper">
+  <div class="tip-card">
+    <div class="tip-label">Scenario 1</div>
+    <div class="tip-q">"S3 bucket contains customer passport numbers — detect automatically"</div>
+    <div class="tip-a">→ Amazon Macie</div>
+  </div>
+  <div class="tip-card">
+    <div class="tip-label">Scenario 2</div>
+    <div class="tip-q">"EC2 sending traffic to unknown IP at 3am — detect this"</div>
+    <div class="tip-a">→ GuardDuty</div>
+  </div>
+  <div class="tip-card">
+    <div class="tip-label">Scenario 3</div>
+    <div class="tip-q">"Who deleted the S3 bucket last Tuesday?"</div>
+    <div class="tip-a">→ CloudTrail</div>
+  </div>
+  <div class="tip-card">
+    <div class="tip-label">Scenario 4</div>
+    <div class="tip-q">"Web app behind ALB receiving SQL injection attacks"</div>
+    <div class="tip-a">→ AWS WAF on ALB</div>
+  </div>
+  <div class="tip-card">
+    <div class="tip-label">Scenario 5</div>
+    <div class="tip-q">"Prevent Dev OU from launching expensive EC2 instances"</div>
+    <div class="tip-a">→ SCP on Dev OU</div>
+  </div>
+  <div class="tip-card">
+    <div class="tip-label">Scenario 6</div>
+    <div class="tip-q">"EC2 has known CVE vulnerability — detect this"</div>
+    <div class="tip-a">→ Amazon Inspector</div>
+  </div>
+  <div class="tip-card">
+    <div class="tip-label">Scenario 7</div>
+    <div class="tip-q">"Ensure all S3 buckets have encryption — alert if not"</div>
+    <div class="tip-a">→ AWS Config Rule</div>
+  </div>
+  <div class="tip-card">
+    <div class="tip-label">Scenario 8</div>
+    <div class="tip-q">"DDoS attack overwhelming app — need 24/7 AWS expert help"</div>
+    <div class="tip-a">→ Shield Advanced + DRT</div>
+  </div>
+  <div class="tip-card">
+    <div class="tip-label">Scenario 9</div>
+    <div class="tip-q">"Auto-respond when GuardDuty detects a threat"</div>
+    <div class="tip-a">→ GuardDuty → EventBridge → Lambda</div>
+  </div>
+</div>
+
+<!-- ── MEMORY AID ── -->
+<div class="memory-wrapper">
+  <div class="section-title" style="text-align:left; margin-bottom:4px;">🧠 Memory Aid — One Word Per Service</div>
+  <div style="font-size:0.8rem; color:#6b7280; margin-bottom:16px;">When you see these words in an exam question — immediately think of this service</div>
+  <div class="memory-grid">
+    <div class="memory-item">
+      <span class="memory-emoji">🧱</span>
+      <div class="memory-name" style="color:#c084fc">WAF</div>
+      <div class="memory-hint">SQL injection XSS web requests</div>
+    </div>
+    <div class="memory-item">
+      <span class="memory-emoji">🌊</span>
+      <div class="memory-name" style="color:#c084fc">Shield</div>
+      <div class="memory-hint">DDoS flood volumetric</div>
+    </div>
+    <div class="memory-item">
+      <span class="memory-emoji">👁️</span>
+      <div class="memory-name" style="color:#38bdf8">GuardDuty</div>
+      <div class="memory-hint">Compromised suspicious active threat</div>
+    </div>
+    <div class="memory-item">
+      <span class="memory-emoji">🔎</span>
+      <div class="memory-name" style="color:#38bdf8">Macie</div>
+      <div class="memory-hint">PII GDPR sensitive S3 only</div>
+    </div>
+    <div class="memory-item">
+      <span class="memory-emoji">🩺</span>
+      <div class="memory-name" style="color:#38bdf8">Inspector</div>
+      <div class="memory-hint">CVE unpatched vulnerability EC2</div>
+    </div>
+    <div class="memory-item">
+      <span class="memory-emoji">📜</span>
+      <div class="memory-name" style="color:#34d399">CloudTrail</div>
+      <div class="memory-hint">Who did what API audit log</div>
+    </div>
+    <div class="memory-item">
+      <span class="memory-emoji">📐</span>
+      <div class="memory-name" style="color:#34d399">Config</div>
+      <div class="memory-hint">What changed compliance drift</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

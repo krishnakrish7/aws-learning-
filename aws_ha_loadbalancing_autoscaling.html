@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS HA, Load Balancing & Auto Scaling — Visual Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0a0f1e; color: #fff; min-height: 100vh; padding: 30px 20px; }
+
+  h1 { text-align: center; font-size: 1.8rem; color: #fff; margin-bottom: 6px; letter-spacing: 1px; }
+  .subtitle { text-align: center; color: #8892a4; font-size: 0.95rem; margin-bottom: 40px; }
+  .section-title { text-align: center; font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin-bottom: 20px; }
+  .wrapper { max-width: 980px; margin: 0 auto; }
+
+  /* ── MENTAL MODEL ── */
+  .mental-box {
+    background: #0d1424; border: 1px solid #1e2a3a; border-radius: 16px;
+    padding: 24px 28px; margin-bottom: 36px;
+  }
+  .mental-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+  .mental-card { border-radius: 12px; padding: 18px; text-align: center; }
+  .mc-blue   { background: rgba(14,165,233,0.12); border: 1px solid rgba(14,165,233,0.35); }
+  .mc-orange { background: rgba(251,146,60,0.12);  border: 1px solid rgba(251,146,60,0.35); }
+  .mc-green  { background: rgba(16,185,129,0.12);  border: 1px solid rgba(16,185,129,0.35); }
+  .mc-icon { font-size: 2.2rem; margin-bottom: 10px; }
+  .mc-title { font-size: 0.95rem; font-weight: 800; margin-bottom: 6px; }
+  .mc-blue .mc-title   { color: #38bdf8; }
+  .mc-orange .mc-title { color: #fb923c; }
+  .mc-green .mc-title  { color: #34d399; }
+  .mc-desc { font-size: 0.75rem; color: #94a3b8; line-height: 1.5; }
+
+  /* ── SERVICE SECTION ── */
+  .svc-section { margin-bottom: 32px; }
+  .svc-header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-radius: 14px 14px 0 0; border-bottom: 2px solid transparent; }
+  .sh-blue   { background: rgba(14,165,233,0.15);  border-color: #38bdf8; }
+  .sh-orange { background: rgba(251,146,60,0.15);  border-color: #fb923c; }
+  .sh-green  { background: rgba(16,185,129,0.15);  border-color: #34d399; }
+  .sh-purple { background: rgba(168,85,247,0.15);  border-color: #c084fc; }
+  .svc-icon { font-size: 2rem; }
+  .svc-name { font-size: 1.15rem; font-weight: 800; }
+  .svc-tagline { font-size: 0.78rem; opacity: 0.75; margin-top: 2px; }
+  .svc-badge { margin-left: auto; padding: 4px 14px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; }
+  .badge-blue   { background: rgba(14,165,233,0.3);  color: #38bdf8; }
+  .badge-orange { background: rgba(251,146,60,0.3);  color: #fb923c; }
+  .badge-green  { background: rgba(16,185,129,0.3);  color: #34d399; }
+  .badge-purple { background: rgba(168,85,247,0.3);  color: #c084fc; }
+  .svc-body { background: #0d1424; border: 1px solid #1e2a3a; border-top: none; border-radius: 0 0 14px 14px; padding: 20px; }
+
+  /* ── ELB CARDS ── */
+  .elb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .elb-card { border-radius: 12px; padding: 16px; }
+  .elb-alb  { background: rgba(14,165,233,0.1);  border: 1px solid rgba(14,165,233,0.4); }
+  .elb-nlb  { background: rgba(251,146,60,0.1);  border: 1px solid rgba(251,146,60,0.4); }
+  .elb-gwlb { background: rgba(168,85,247,0.1);  border: 1px solid rgba(168,85,247,0.4); }
+  .elb-name { font-size: 0.95rem; font-weight: 800; margin-bottom: 6px; }
+  .en-alb  { color: #38bdf8; }
+  .en-nlb  { color: #fb923c; }
+  .en-gwlb { color: #c084fc; }
+  .elb-layer { font-size: 0.68rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; display: inline-block; margin-bottom: 8px; }
+  .el-alb  { background: rgba(14,165,233,0.25);  color: #38bdf8; }
+  .el-nlb  { background: rgba(251,146,60,0.25);  color: #fb923c; }
+  .el-gwlb { background: rgba(168,85,247,0.25);  color: #c084fc; }
+  .elb-item { display: flex; gap: 6px; margin-bottom: 5px; }
+  .elb-dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .ed-alb  { background: #38bdf8; }
+  .ed-nlb  { background: #fb923c; }
+  .ed-gwlb { background: #c084fc; }
+  .elb-text { font-size: 0.73rem; color: #cbd5e1; line-height: 1.4; }
+  .elb-trigger { margin-top: 10px; padding: 7px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; }
+  .et-alb  { background: rgba(14,165,233,0.2);  color: #38bdf8; }
+  .et-nlb  { background: rgba(251,146,60,0.2);  color: #fb923c; }
+  .et-gwlb { background: rgba(168,85,247,0.2);  color: #c084fc; }
+
+  /* ── ASG ── */
+  .asg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .asg-card { border-radius: 12px; padding: 16px; }
+  .ac-green  { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); }
+  .ac-yellow { background: rgba(251,191,36,0.1);  border: 1px solid rgba(251,191,36,0.35); }
+  .ac-title { font-size: 0.9rem; font-weight: 800; margin-bottom: 10px; }
+  .act-green  { color: #34d399; }
+  .act-yellow { color: #fbbf24; }
+  .ac-item { display: flex; gap: 8px; margin-bottom: 6px; align-items: flex-start; }
+  .ac-bullet { font-size: 0.75rem; color: #4b5563; margin-top: 2px; }
+  .ac-text { font-size: 0.75rem; color: #cbd5e1; line-height: 1.4; }
+
+  /* ── SCALING POLICIES ── */
+  .policy-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .policy-card { border-radius: 10px; padding: 14px; text-align: center; }
+  .pc-1 { background: rgba(14,165,233,0.1);  border: 1px solid rgba(14,165,233,0.35); }
+  .pc-2 { background: rgba(251,146,60,0.1);  border: 1px solid rgba(251,146,60,0.35); }
+  .pc-3 { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); }
+  .pc-4 { background: rgba(168,85,247,0.1);  border: 1px solid rgba(168,85,247,0.35); }
+  .pc-icon { font-size: 1.6rem; margin-bottom: 8px; }
+  .pc-name { font-size: 0.82rem; font-weight: 800; margin-bottom: 6px; }
+  .pn-1 { color: #38bdf8; } .pn-2 { color: #fb923c; } .pn-3 { color: #34d399; } .pn-4 { color: #c084fc; }
+  .pc-desc { font-size: 0.7rem; color: #94a3b8; line-height: 1.4; }
+  .pc-example { font-size: 0.68rem; margin-top: 6px; font-style: italic; color: #6b7280; }
+
+  /* ── HA DIAGRAM ── */
+  .ha-diagram {
+    background: #080e1a; border: 1px solid #1e2a3a; border-radius: 14px;
+    padding: 24px; margin-bottom: 16px; text-align: center;
+  }
+  .ha-region { border: 2px dashed #2d3748; border-radius: 12px; padding: 20px; margin-bottom: 16px; position: relative; }
+  .ha-region-label { position: absolute; top: -12px; left: 16px; background: #080e1a; padding: 0 8px; font-size: 0.72rem; color: #4b5563; font-weight: 700; letter-spacing: 1px; }
+  .ha-azs { display: flex; gap: 16px; justify-content: center; }
+  .ha-az { border: 1px solid #1f2937; border-radius: 10px; padding: 14px 20px; flex: 1; max-width: 200px; }
+  .ha-az-label { font-size: 0.7rem; color: #6b7280; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .ha-ec2 { background: rgba(14,165,233,0.15); border: 1px solid rgba(14,165,233,0.3); border-radius: 8px; padding: 8px; margin-bottom: 6px; font-size: 0.72rem; color: #38bdf8; }
+  .ha-rds-primary { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 8px; font-size: 0.72rem; color: #34d399; }
+  .ha-rds-standby { background: rgba(251,146,60,0.15); border: 1px solid rgba(251,146,60,0.3); border-radius: 8px; padding: 8px; font-size: 0.72rem; color: #fb923c; }
+  .ha-elb-box { background: rgba(168,85,247,0.15); border: 2px solid rgba(168,85,247,0.5); border-radius: 10px; padding: 10px 20px; display: inline-block; margin-bottom: 16px; font-size: 0.78rem; font-weight: 700; color: #c084fc; }
+  .ha-internet { font-size: 0.75rem; color: #4b5563; margin-bottom: 8px; }
+  .ha-arrow { color: #374151; font-size: 1.2rem; margin: 4px 0; display: block; }
+  .ha-sync { font-size: 0.65rem; color: #4b5563; font-style: italic; margin-top: 6px; }
+
+  /* ── DR TABLE ── */
+  .dr-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .dr-card { border-radius: 12px; padding: 14px; }
+  .dr-1 { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); }
+  .dr-2 { background: rgba(251,191,36,0.1);  border: 1px solid rgba(251,191,36,0.35); }
+  .dr-3 { background: rgba(251,146,60,0.1);  border: 1px solid rgba(251,146,60,0.35); }
+  .dr-4 { background: rgba(239,68,68,0.1);   border: 1px solid rgba(239,68,68,0.35); }
+  .dr-name { font-size: 0.82rem; font-weight: 800; margin-bottom: 8px; }
+  .dn-1 { color: #34d399; } .dn-2 { color: #fbbf24; } .dn-3 { color: #fb923c; } .dn-4 { color: #f87171; }
+  .dr-stat { font-size: 0.7rem; color: #94a3b8; margin-bottom: 4px; }
+  .dr-val { font-weight: 700; font-size: 0.75rem; }
+  .dv-1 { color: #34d399; } .dv-2 { color: #fbbf24; } .dv-3 { color: #fb923c; } .dv-4 { color: #f87171; }
+  .dr-desc { font-size: 0.68rem; color: #6b7280; margin-top: 8px; line-height: 1.4; }
+
+  /* ── CHIPS ── */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { padding: 4px 12px; border-radius: 20px; font-size: 0.71rem; font-weight: 600; }
+  .ch-blue   { background: rgba(14,165,233,0.2);  color: #38bdf8;  border: 1px solid rgba(14,165,233,0.3); }
+  .ch-orange { background: rgba(251,146,60,0.2);  color: #fb923c;  border: 1px solid rgba(251,146,60,0.3); }
+  .ch-green  { background: rgba(16,185,129,0.2);  color: #34d399;  border: 1px solid rgba(16,185,129,0.3); }
+  .ch-purple { background: rgba(168,85,247,0.2);  color: #c084fc;  border: 1px solid rgba(168,85,247,0.3); }
+  .ch-yellow { background: rgba(251,191,36,0.2);  color: #fbbf24;  border: 1px solid rgba(251,191,36,0.3); }
+  .ch-red    { background: rgba(239,68,68,0.2);   color: #f87171;  border: 1px solid rgba(239,68,68,0.3); }
+
+  /* ── COMPARISON TABLE ── */
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 36px; }
+  th { background: #1e2a3a; color: #94a3b8; font-weight: 600; padding: 11px 13px; text-align: left; border-bottom: 2px solid #2d3748; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 11px 13px; border-bottom: 1px solid #1a2332; vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr:last-child td { border-bottom: none; }
+  .svc-label { font-weight: 700; color: #e2e8f0; }
+  .yes { color: #34d399; font-weight: 700; }
+  .no  { color: #f87171; }
+
+  /* ── SCENARIOS ── */
+  .scenarios-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 36px; }
+  .sc-card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; border-left: 3px solid #f59e0b; }
+  .sc-label { font-size: 0.65rem; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .sc-q { font-size: 0.76rem; color: #9ca3af; margin-bottom: 10px; line-height: 1.5; font-style: italic; }
+  .sc-a { font-size: 0.81rem; color: #34d399; font-weight: 700; }
+
+  /* ── MEMORY AID ── */
+  .memory-box { background: #0d1424; border: 1px solid #1e2a3a; border-radius: 16px; padding: 26px 28px; margin-bottom: 10px; }
+  .memory-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 16px; }
+  .memory-item { text-align: center; }
+  .memory-emoji { font-size: 2rem; display: block; margin-bottom: 6px; }
+  .memory-name { font-size: 0.72rem; font-weight: 800; color: #e2e8f0; }
+  .memory-hint { font-size: 0.62rem; color: #6b7280; margin-top: 3px; line-height: 1.3; }
+
+  /* ── KEY TRAP BOX ── */
+  .trap-box { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
+  .trap-title { font-size: 0.78rem; font-weight: 700; color: #f87171; margin-bottom: 10px; }
+  .trap-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .trap-item { flex: 1; min-width: 180px; }
+  .trap-label { font-size: 0.72rem; font-weight: 700; color: #fbbf24; margin-bottom: 4px; }
+  .trap-text  { font-size: 0.72rem; color: #cbd5e1; line-height: 1.5; }
+
+  @media (max-width: 700px) {
+    .mental-grid, .elb-grid, .policy-grid, .dr-grid { grid-template-columns: 1fr; }
+    .asg-grid { grid-template-columns: 1fr; }
+    .scenarios-grid { grid-template-columns: 1fr; }
+    .memory-grid { grid-template-columns: repeat(3, 1fr); }
+    .ha-azs { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🏗️ High Availability, Load Balancing & Auto Scaling</h1>
+<p class="subtitle">Visual Guide — AWS Solutions Architect Associate • Lesson 3</p>
+
+<div class="wrapper">
+
+<!-- ── MENTAL MODEL ── -->
+<div class="mental-box">
+  <div class="section-title" style="text-align:left; margin-bottom:4px;">🧠 The Core Mental Model</div>
+  <div style="font-size:0.8rem; color:#6b7280; margin-bottom:16px;">These 3 concepts work together — they're almost never tested in isolation</div>
+  <div class="mental-grid">
+    <div class="mental-card mc-blue">
+      <div class="mc-icon">⚖️</div>
+      <div class="mc-title">Elastic Load Balancer</div>
+      <div class="mc-desc">Distributes incoming traffic across multiple targets. Single entry point. Hides complexity from users.</div>
+    </div>
+    <div class="mental-card mc-orange">
+      <div class="mc-icon">📈</div>
+      <div class="mc-title">Auto Scaling Group</div>
+      <div class="mc-desc">Automatically adds or removes EC2 instances based on demand. Always right-sized — not too many, not too few.</div>
+    </div>
+    <div class="mental-card mc-green">
+      <div class="mc-icon">🛡️</div>
+      <div class="mc-title">High Availability</div>
+      <div class="mc-desc">Deploying across multiple AZs so one AZ failure doesn't take down your app. ELB + ASG achieve this together.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── HA ARCHITECTURE DIAGRAM ── -->
+<div class="ha-diagram">
+  <div style="font-size:0.78rem; color:#6b7280; font-weight:700; margin-bottom:12px; text-transform:uppercase; letter-spacing:1px;">Typical HA Architecture</div>
+  <div class="ha-internet">🌐 Internet Traffic</div>
+  <span class="ha-arrow">▼</span>
+  <div class="ha-elb-box">⚖️ Application Load Balancer (multi-AZ)</div>
+  <span class="ha-arrow">▼</span>
+  <div class="ha-region">
+    <div class="ha-region-label">AWS REGION</div>
+    <div class="ha-azs">
+      <div class="ha-az">
+        <div class="ha-az-label">AZ — 1a</div>
+        <div class="ha-ec2">🖥️ EC2 Instance</div>
+        <div class="ha-ec2">🖥️ EC2 Instance</div>
+        <div class="ha-rds-primary">🗄️ RDS Primary</div>
+      </div>
+      <div style="display:flex; align-items:center; color:#374151; font-size:1.2rem;">⇄</div>
+      <div class="ha-az">
+        <div class="ha-az-label">AZ — 1b</div>
+        <div class="ha-ec2">🖥️ EC2 Instance</div>
+        <div class="ha-ec2">🖥️ EC2 Instance</div>
+        <div class="ha-rds-standby">🗄️ RDS Standby</div>
+      </div>
+    </div>
+    <div class="ha-sync">↕ Sync replication between AZs · ASG manages EC2 count automatically</div>
+  </div>
+  <div style="font-size:0.72rem; color:#4b5563; font-style:italic;">If AZ-1a fails → ELB routes all traffic to AZ-1b automatically. RDS fails over to standby. Zero downtime.</div>
+</div>
+
+<!-- ── LOAD BALANCERS ── -->
+<div class="svc-section">
+  <div class="svc-header sh-blue">
+    <div class="svc-icon">⚖️</div>
+    <div>
+      <div class="svc-name" style="color:#38bdf8">Elastic Load Balancer (ELB)</div>
+      <div class="svc-tagline">Distributes traffic across targets. Three types — each for a different use case.</div>
+    </div>
+    <div class="svc-badge badge-blue">Traffic Distribution</div>
+  </div>
+  <div class="svc-body">
+    <div class="elb-grid">
+      <div class="elb-card elb-alb">
+        <div class="elb-name en-alb">ALB — Application LB ⭐</div>
+        <div class="elb-layer el-alb">Layer 7 — HTTP/HTTPS</div>
+        <div class="elb-item"><div class="elb-dot ed-alb"></div><div class="elb-text">Routes based on <strong>URL path</strong> (/api → service A, /images → service B)</div></div>
+        <div class="elb-item"><div class="elb-dot ed-alb"></div><div class="elb-text">Routes based on <strong>hostname</strong> (api.example.com vs web.example.com)</div></div>
+        <div class="elb-item"><div class="elb-dot ed-alb"></div><div class="elb-text">Supports <strong>WebSocket</strong> and HTTP/2</div></div>
+        <div class="elb-item"><div class="elb-dot ed-alb"></div><div class="elb-text">Targets: EC2, ECS, Lambda, IP addresses</div></div>
+        <div class="elb-item"><div class="elb-dot ed-alb"></div><div class="elb-text">Has a static <strong>DNS name</strong> (not static IP)</div></div>
+        <div class="elb-trigger et-alb">Trigger: microservices • path-based routing • containers • HTTP</div>
+      </div>
+      <div class="elb-card elb-nlb">
+        <div class="elb-name en-nlb">NLB — Network LB</div>
+        <div class="elb-layer el-nlb">Layer 4 — TCP/UDP/TLS</div>
+        <div class="elb-item"><div class="elb-dot ed-nlb"></div><div class="elb-text">Handles <strong>millions of requests per second</strong></div></div>
+        <div class="elb-item"><div class="elb-dot ed-nlb"></div><div class="elb-text">Ultra-low latency — <strong>~100ms</strong> vs ALB ~400ms</div></div>
+        <div class="elb-item"><div class="elb-dot ed-nlb"></div><div class="elb-text">Has <strong>static IP address</strong> per AZ (or Elastic IP)</div></div>
+        <div class="elb-item"><div class="elb-dot ed-nlb"></div><div class="elb-text">Supports <strong>TCP, UDP, TLS</strong> protocols</div></div>
+        <div class="elb-item"><div class="elb-dot ed-nlb"></div><div class="elb-text">Used for gaming, IoT, financial trading</div></div>
+        <div class="elb-trigger et-nlb">Trigger: static IP • extreme performance • TCP/UDP • gaming</div>
+      </div>
+      <div class="elb-card elb-gwlb">
+        <div class="elb-name en-gwlb">GWLB — Gateway LB</div>
+        <div class="elb-layer el-gwlb">Layer 3 — IP Packets</div>
+        <div class="elb-item"><div class="elb-dot ed-gwlb"></div><div class="elb-text">Routes traffic through <strong>third-party security appliances</strong></div></div>
+        <div class="elb-item"><div class="elb-dot ed-gwlb"></div><div class="elb-text">Intrusion detection, firewalls, deep packet inspection</div></div>
+        <div class="elb-item"><div class="elb-dot ed-gwlb"></div><div class="elb-text">All traffic passes through security appliance first</div></div>
+        <div class="elb-item"><div class="elb-dot ed-gwlb"></div><div class="elb-text">Uses <strong>GENEVE protocol</strong> on port 6081</div></div>
+        <div class="elb-trigger et-gwlb">Trigger: firewall • intrusion detection • security appliance • inspect traffic</div>
+      </div>
+    </div>
+
+    <!-- ALB vs NLB trap -->
+    <div class="trap-box">
+      <div class="trap-title">⚠️ Most Common ELB Trap — ALB vs NLB</div>
+      <div class="trap-row">
+        <div class="trap-item">
+          <div class="trap-label">Choose ALB when...</div>
+          <div class="trap-text">• HTTP/HTTPS traffic<br>• Need URL path routing<br>• Microservices / containers<br>• WebSocket support needed</div>
+        </div>
+        <div class="trap-item">
+          <div class="trap-label">Choose NLB when...</div>
+          <div class="trap-text">• Need static IP address<br>• TCP/UDP protocols<br>• Extreme low latency<br>• Millions of req/sec</div>
+        </div>
+        <div class="trap-item">
+          <div class="trap-label">Key difference to remember</div>
+          <div class="trap-text">ALB = <strong style="color:#38bdf8">smart routing</strong> (knows about URLs)<br>NLB = <strong style="color:#fb923c">raw speed</strong> (doesn't care about content)<br>GWLB = <strong style="color:#c084fc">security inspection</strong> (routes through appliances)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chips">
+      <div class="chip ch-blue">Sticky Sessions (ALB + NLB)</div>
+      <div class="chip ch-green">Cross-Zone Load Balancing</div>
+      <div class="chip ch-orange">Connection Draining / Deregistration Delay</div>
+      <div class="chip ch-purple">SNI — Multiple SSL certs on one LB (ALB + NLB)</div>
+      <div class="chip ch-yellow">Health Checks — automatic unhealthy instance removal</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── AUTO SCALING ── -->
+<div class="svc-section">
+  <div class="svc-header sh-orange">
+    <div class="svc-icon">📈</div>
+    <div>
+      <div class="svc-name" style="color:#fb923c">Auto Scaling Groups (ASG)</div>
+      <div class="svc-tagline">Automatically scale EC2 instances in or out based on demand. Always paired with ELB.</div>
+    </div>
+    <div class="svc-badge badge-orange">Auto Scaling</div>
+  </div>
+  <div class="svc-body">
+    <div class="asg-grid">
+      <div class="asg-card ac-green">
+        <div class="ac-title act-green">⚙️ Core Configuration</div>
+        <div class="ac-item"><div class="ac-bullet">▸</div><div class="ac-text"><strong>Minimum capacity</strong> — never go below this (e.g. min: 2)</div></div>
+        <div class="ac-item"><div class="ac-bullet">▸</div><div class="ac-text"><strong>Desired capacity</strong> — target number right now (e.g. desired: 4)</div></div>
+        <div class="ac-item"><div class="ac-bullet">▸</div><div class="ac-text"><strong>Maximum capacity</strong> — never exceed this (e.g. max: 10)</div></div>
+        <div class="ac-item"><div class="ac-bullet">▸</div><div class="ac-text"><strong>Launch Template</strong> — defines what EC2 to launch (AMI, instance type, security groups)</div></div>
+        <div class="ac-item"><div class="ac-bullet">▸</div><div class="ac-text"><strong>Health checks</strong> — replaces unhealthy instances automatically</div></div>
+      </div>
+      <div class="asg-card ac-yellow">
+        <div class="ac-title act-yellow">🔑 Key Exam Facts</div>
+        <div class="ac-item"><div class="ac-bullet">▸</div><div class="ac-text">Free to use — you pay for the EC2 instances, not ASG itself</div></div>
+        <div class="ac-item"><div class="ac-bullet">▸</div><div class="ac-text">Spans <strong>multiple AZs</strong> — automatically balances instances across AZs</div></div>
+        <div class="ac-item"><div class="ac-bullet">▸</div><div class="ac-text"><strong>Cooldown period</strong> — wait time after scaling before next action (default 300s)</div></div>
+        <div class="ac-item"><div class="ac-bullet">▸</div><div class="ac-text"><strong>Lifecycle hooks</strong> — run scripts before instance goes in service or terminates</div></div>
+        <div class="ac-item"><div class="ac-bullet">▸</div><div class="ac-text">Termination policy: terminates instance in AZ with most instances first</div></div>
+      </div>
+    </div>
+
+    <!-- Scaling Policies -->
+    <div style="font-size:0.8rem; font-weight:700; color:#fb923c; margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;">Scaling Policies — Know All 4</div>
+    <div class="policy-grid">
+      <div class="policy-card pc-1">
+        <div class="pc-icon">🎯</div>
+        <div class="pc-name pn-1">Target Tracking</div>
+        <div class="pc-desc">Set a target metric. AWS manages scaling automatically.</div>
+        <div class="pc-example">"Keep CPU at 50%"</div>
+      </div>
+      <div class="policy-card pc-2">
+        <div class="pc-icon">📊</div>
+        <div class="pc-name pn-2">Step Scaling</div>
+        <div class="pc-desc">Different scaling actions for different alarm thresholds.</div>
+        <div class="pc-example">"CPU >70% add 2, CPU >90% add 5"</div>
+      </div>
+      <div class="policy-card pc-3">
+        <div class="pc-icon">📅</div>
+        <div class="pc-name pn-3">Scheduled Scaling</div>
+        <div class="pc-desc">Scale based on known time patterns.</div>
+        <div class="pc-example">"Every Monday 9am add 10 instances"</div>
+      </div>
+      <div class="policy-card pc-4">
+        <div class="pc-icon">🔮</div>
+        <div class="pc-name pn-4">Predictive Scaling</div>
+        <div class="pc-desc">ML analyses historical patterns, scales proactively.</div>
+        <div class="pc-example">"Forecast next week's load"</div>
+      </div>
+    </div>
+    <div class="chips">
+      <div class="chip ch-green">Most recommended → Target Tracking (simplest)</div>
+      <div class="chip ch-orange">Known schedule → Scheduled Scaling</div>
+      <div class="chip ch-purple">Fine-grained control → Step Scaling</div>
+      <div class="chip ch-blue">Recurring patterns → Predictive Scaling</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DISASTER RECOVERY ── -->
+<div class="svc-section">
+  <div class="svc-header sh-purple">
+    <div class="svc-icon">🔄</div>
+    <div>
+      <div class="svc-name" style="color:#c084fc">Disaster Recovery Strategies</div>
+      <div class="svc-tagline">4 strategies — cost vs recovery speed trade-off. Know them in order.</div>
+    </div>
+    <div class="svc-badge badge-purple">DR Strategies</div>
+  </div>
+  <div class="svc-body">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+      <div style="font-size:0.75rem; color:#34d399;">← Cheapest · Slowest recovery</div>
+      <div style="font-size:0.75rem; color:#f87171;">Most expensive · Fastest recovery →</div>
+    </div>
+    <div class="dr-grid">
+      <div class="dr-card dr-1">
+        <div class="dr-name dn-1">1. Backup & Restore</div>
+        <div class="dr-stat">RTO/RPO: <span class="dr-val dv-1">Hours</span></div>
+        <div class="dr-stat">Cost: <span class="dr-val dv-1">💲 Lowest</span></div>
+        <div class="dr-desc">Backup data to S3. Restore from scratch when disaster hits. Cheapest but slowest.</div>
+      </div>
+      <div class="dr-card dr-2">
+        <div class="dr-name dn-2">2. Pilot Light</div>
+        <div class="dr-stat">RTO/RPO: <span class="dr-val dv-2">~10 mins</span></div>
+        <div class="dr-stat">Cost: <span class="dr-val dv-2">💲💲 Low</span></div>
+        <div class="dr-desc">Core systems (DB) always running in AWS at minimal scale. Scale up quickly on disaster.</div>
+      </div>
+      <div class="dr-card dr-3">
+        <div class="dr-name dn-3">3. Warm Standby</div>
+        <div class="dr-stat">RTO/RPO: <span class="dr-val dv-3">~Minutes</span></div>
+        <div class="dr-stat">Cost: <span class="dr-val dv-3">💲💲💲 Medium</span></div>
+        <div class="dr-desc">Full scaled-down version always running. Just scale it up to full production size on failover.</div>
+      </div>
+      <div class="dr-card dr-4">
+        <div class="dr-name dn-4">4. Multi-Site Active/Active</div>
+        <div class="dr-stat">RTO/RPO: <span class="dr-val dv-4">~0 (real-time)</span></div>
+        <div class="dr-stat">Cost: <span class="dr-val dv-4">💲💲💲💲 Highest</span></div>
+        <div class="dr-desc">Full production running in multiple regions simultaneously. Instant failover. Most expensive.</div>
+      </div>
+    </div>
+    <div style="background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:10px; padding:12px; margin-top:4px;">
+      <div style="font-size:0.75rem; color:#94a3b8;">
+        <strong style="color:#c084fc">RTO</strong> = Recovery Time Objective — how long to restore service &nbsp;|&nbsp;
+        <strong style="color:#c084fc">RPO</strong> = Recovery Point Objective — how much data you can afford to lose
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── COMPARISON TABLE ── -->
+<div class="section-title">📊 ELB Types at a Glance</div>
+<table>
+  <thead>
+    <tr>
+      <th>Load Balancer</th>
+      <th>Layer</th>
+      <th>Protocol</th>
+      <th>Static IP?</th>
+      <th>Path Routing?</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="svc-label">⚖️ ALB</span></td>
+      <td>Layer 7</td>
+      <td>HTTP, HTTPS, WebSocket</td>
+      <td><span class="no">DNS only</span></td>
+      <td><span class="yes">✓ Yes</span></td>
+      <td>Web apps, microservices, containers</td>
+    </tr>
+    <tr>
+      <td><span class="svc-label">⚡ NLB</span></td>
+      <td>Layer 4</td>
+      <td>TCP, UDP, TLS</td>
+      <td><span class="yes">✓ Yes</span></td>
+      <td><span class="no">✗ No</span></td>
+      <td>Gaming, IoT, financial, static IP needed</td>
+    </tr>
+    <tr>
+      <td><span class="svc-label">🛡️ GWLB</span></td>
+      <td>Layer 3</td>
+      <td>IP Packets (GENEVE)</td>
+      <td><span class="no">N/A</span></td>
+      <td><span class="no">✗ No</span></td>
+      <td>Firewall, IDS/IPS, security appliances</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ── EXAM SCENARIOS ── -->
+<div class="section-title">🎯 Exam Scenario Quick-Fire</div>
+<div class="scenarios-grid">
+  <div class="sc-card">
+    <div class="sc-label">Scenario 1</div>
+    <div class="sc-q">"Route /api to one target group and /web to another"</div>
+    <div class="sc-a">→ ALB with path-based routing rules</div>
+  </div>
+  <div class="sc-card">
+    <div class="sc-label">Scenario 2</div>
+    <div class="sc-q">"App needs a static IP address for whitelisting by clients"</div>
+    <div class="sc-a">→ NLB (has static IP per AZ)</div>
+  </div>
+  <div class="sc-card">
+    <div class="sc-label">Scenario 3</div>
+    <div class="sc-q">"All traffic must pass through a firewall appliance before reaching EC2"</div>
+    <div class="sc-a">→ Gateway Load Balancer</div>
+  </div>
+  <div class="sc-card">
+    <div class="sc-label">Scenario 4</div>
+    <div class="sc-q">"Scale EC2 fleet to keep average CPU usage at 60%"</div>
+    <div class="sc-a">→ ASG with Target Tracking scaling policy</div>
+  </div>
+  <div class="sc-card">
+    <div class="sc-label">Scenario 5</div>
+    <div class="sc-q">"Add 10 instances every Friday at 5pm for weekend traffic"</div>
+    <div class="sc-a">→ ASG with Scheduled Scaling</div>
+  </div>
+  <div class="sc-card">
+    <div class="sc-label">Scenario 6</div>
+    <div class="sc-q">"Cheapest DR — can tolerate hours of downtime"</div>
+    <div class="sc-a">→ Backup & Restore strategy</div>
+  </div>
+  <div class="sc-card">
+    <div class="sc-label">Scenario 7</div>
+    <div class="sc-q">"Near-zero RTO/RPO — business critical, cost not a concern"</div>
+    <div class="sc-a">→ Multi-Site Active/Active</div>
+  </div>
+  <div class="sc-card">
+    <div class="sc-label">Scenario 8</div>
+    <div class="sc-q">"One AZ goes down — users should not notice any interruption"</div>
+    <div class="sc-a">→ ELB + ASG across multiple AZs</div>
+  </div>
+  <div class="sc-card">
+    <div class="sc-label">Scenario 9</div>
+    <div class="sc-q">"App has recurring traffic spike every Monday morning"</div>
+    <div class="sc-a">→ ASG with Predictive Scaling</div>
+  </div>
+</div>
+
+<!-- ── MEMORY AID ── -->
+<div class="memory-box">
+  <div class="section-title" style="text-align:left; margin-bottom:4px;">🧠 Memory Aid</div>
+  <div style="font-size:0.8rem; color:#6b7280; margin-bottom:4px;">Instant recall for exam questions</div>
+  <div class="memory-grid">
+    <div class="memory-item">
+      <span class="memory-emoji">⚖️</span>
+      <div class="memory-name" style="color:#38bdf8">ALB</div>
+      <div class="memory-hint">HTTP path routing microservices containers</div>
+    </div>
+    <div class="memory-item">
+      <span class="memory-emoji">⚡</span>
+      <div class="memory-name" style="color:#fb923c">NLB</div>
+      <div class="memory-hint">Static IP TCP UDP extreme speed</div>
+    </div>
+    <div class="memory-item">
+      <span class="memory-emoji">🛡️</span>
+      <div class="memory-name" style="color:#c084fc">GWLB</div>
+      <div class="memory-hint">Firewall security appliance inspect traffic</div>
+    </div>
+    <div class="memory-item">
+      <span class="memory-emoji">📈</span>
+      <div class="memory-name" style="color:#34d399">ASG</div>
+      <div class="memory-hint">Scale in out min desired max health replace</div>
+    </div>
+    <div class="memory-item">
+      <span class="memory-emoji">🔄</span>
+      <div class="memory-name" style="color:#fbbf24">DR Strategies</div>
+      <div class="memory-hint">Backup → Pilot → Warm → Active/Active</div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS VPC Deep Dive — Visual Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0a0f1e; color: #fff; min-height: 100vh; padding: 30px 20px; }
+  h1 { text-align: center; font-size: 1.8rem; color: #fff; margin-bottom: 6px; letter-spacing: 1px; }
+  .subtitle { text-align: center; color: #8892a4; font-size: 0.95rem; margin-bottom: 40px; }
+  .section-title { text-align: center; font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin-bottom: 20px; }
+  .wrapper { max-width: 980px; margin: 0 auto; }
+
+  /* ── VPC ARCHITECTURE DIAGRAM ── */
+  .vpc-diagram {
+    background: #080e1a; border: 2px solid #1e3a5f; border-radius: 18px;
+    padding: 24px; margin-bottom: 36px; position: relative;
+  }
+  .vpc-label { font-size: 0.7rem; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; text-align: center; }
+  .internet-row { text-align: center; margin-bottom: 10px; }
+  .internet-cloud { display: inline-block; background: rgba(100,116,139,0.15); border: 1px dashed #4b5563; border-radius: 30px; padding: 8px 24px; font-size: 0.82rem; color: #94a3b8; }
+  .arrow-down { text-align: center; color: #374151; font-size: 1.1rem; margin: 6px 0; }
+  .igw-box { text-align: center; margin-bottom: 10px; }
+  .igw-pill { display: inline-block; background: rgba(251,191,36,0.15); border: 2px solid rgba(251,191,36,0.5); border-radius: 10px; padding: 8px 24px; font-size: 0.8rem; font-weight: 700; color: #fbbf24; }
+
+  .vpc-region { border: 2px dashed #1e3a5f; border-radius: 14px; padding: 18px; margin-bottom: 10px; position: relative; }
+  .vpc-region-label { position: absolute; top: -11px; left: 16px; background: #080e1a; padding: 0 8px; font-size: 0.68rem; color: #3b82f6; font-weight: 700; letter-spacing: 1px; }
+
+  .subnets-row { display: flex; gap: 14px; }
+  .subnet { flex: 1; border-radius: 12px; padding: 14px; }
+  .public-subnet  { background: rgba(16,185,129,0.08);  border: 1px solid rgba(16,185,129,0.35); }
+  .private-subnet { background: rgba(168,85,247,0.08);  border: 1px solid rgba(168,85,247,0.35); }
+  .subnet-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .sl-public  { color: #34d399; }
+  .sl-private { color: #c084fc; }
+  .subnet-item { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 7px 10px; margin-bottom: 6px; font-size: 0.72rem; color: #cbd5e1; display: flex; align-items: center; gap: 6px; }
+  .si-icon { font-size: 0.9rem; }
+
+  .nat-arrow { text-align: center; color: #374151; font-size: 0.75rem; margin: 4px 0; }
+  .onprem-row { display: flex; gap: 14px; margin-top: 12px; }
+  .onprem-item { flex: 1; text-align: center; padding: 10px; border-radius: 10px; }
+  .op-vpn { background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.3); }
+  .op-dx  { background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.3); }
+  .op-title { font-size: 0.72rem; font-weight: 700; margin-bottom: 3px; }
+  .op-vpn .op-title { color: #fb923c; }
+  .op-dx  .op-title  { color: #38bdf8; }
+  .op-text { font-size: 0.65rem; color: #6b7280; }
+
+  /* ── SERVICE SECTIONS ── */
+  .svc-section { margin-bottom: 28px; }
+  .svc-header { display: flex; align-items: center; gap: 14px; padding: 15px 20px; border-radius: 14px 14px 0 0; border-bottom: 2px solid transparent; }
+  .sh-green  { background: rgba(16,185,129,0.15);  border-color: #34d399; }
+  .sh-red    { background: rgba(239,68,68,0.15);   border-color: #f87171; }
+  .sh-blue   { background: rgba(14,165,233,0.15);  border-color: #38bdf8; }
+  .sh-purple { background: rgba(168,85,247,0.15);  border-color: #c084fc; }
+  .sh-orange { background: rgba(251,146,60,0.15);  border-color: #fb923c; }
+  .sh-yellow { background: rgba(251,191,36,0.15);  border-color: #fbbf24; }
+  .svc-icon { font-size: 1.8rem; }
+  .svc-name { font-size: 1.1rem; font-weight: 800; }
+  .svc-tagline { font-size: 0.76rem; opacity: 0.75; margin-top: 2px; }
+  .svc-badge { margin-left: auto; padding: 3px 12px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
+  .badge-green  { background: rgba(16,185,129,0.3);  color: #34d399; }
+  .badge-red    { background: rgba(239,68,68,0.3);   color: #f87171; }
+  .badge-blue   { background: rgba(14,165,233,0.3);  color: #38bdf8; }
+  .badge-purple { background: rgba(168,85,247,0.3);  color: #c084fc; }
+  .badge-orange { background: rgba(251,146,60,0.3);  color: #fb923c; }
+  .badge-yellow { background: rgba(251,191,36,0.3);  color: #fbbf24; }
+  .svc-body { background: #0d1424; border: 1px solid #1e2a3a; border-top: none; border-radius: 0 0 14px 14px; padding: 18px; }
+
+  /* ── SG vs NACL TABLE ── */
+  .compare-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .ct-card { border-radius: 12px; padding: 16px; }
+  .ct-sg   { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); }
+  .ct-nacl { background: rgba(239,68,68,0.1);   border: 1px solid rgba(239,68,68,0.35); }
+  .ct-title { font-size: 0.95rem; font-weight: 800; margin-bottom: 10px; }
+  .ct-sg .ct-title   { color: #34d399; }
+  .ct-nacl .ct-title { color: #f87171; }
+  .ct-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: flex-start; }
+  .ct-icon { font-size: 0.85rem; flex-shrink: 0; margin-top: 1px; }
+  .ct-text { font-size: 0.73rem; color: #cbd5e1; line-height: 1.4; }
+  .ct-verdict { margin-top: 10px; padding: 7px 12px; border-radius: 8px; font-size: 0.71rem; font-weight: 700; }
+  .cv-sg   { background: rgba(16,185,129,0.2);  color: #34d399; }
+  .cv-nacl { background: rgba(239,68,68,0.2);   color: #f87171; }
+
+  /* ── CONNECTIVITY COMPARE ── */
+  .conn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+  .conn-card { border-radius: 12px; padding: 14px; }
+  .cc-peer { background: rgba(14,165,233,0.1);  border: 1px solid rgba(14,165,233,0.35); }
+  .cc-tgw  { background: rgba(168,85,247,0.1);  border: 1px solid rgba(168,85,247,0.35); }
+  .cc-ep   { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); }
+  .cc-title { font-size: 0.88rem; font-weight: 800; margin-bottom: 8px; }
+  .cct-peer { color: #38bdf8; }
+  .cct-tgw  { color: #c084fc; }
+  .cct-ep   { color: #34d399; }
+  .cc-item { display: flex; gap: 6px; margin-bottom: 5px; }
+  .cc-dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .cd-peer { background: #38bdf8; }
+  .cd-tgw  { background: #c084fc; }
+  .cd-ep   { background: #34d399; }
+  .cc-text { font-size: 0.71rem; color: #cbd5e1; line-height: 1.4; }
+  .cc-trigger { margin-top: 8px; padding: 6px 10px; border-radius: 8px; font-size: 0.68rem; font-weight: 700; }
+  .ct-peer { background: rgba(14,165,233,0.2);  color: #38bdf8; }
+  .ct-tgw  { background: rgba(168,85,247,0.2);  color: #c084fc; }
+  .ct-ep   { background: rgba(16,185,129,0.2);  color: #34d399; }
+
+  /* ── NAT COMPARE ── */
+  .nat-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .nat-gw   { background: rgba(251,191,36,0.1);  border: 1px solid rgba(251,191,36,0.35); border-radius: 12px; padding: 16px; }
+  .nat-inst { background: rgba(100,116,139,0.1); border: 1px solid rgba(100,116,139,0.35); border-radius: 12px; padding: 16px; }
+  .nat-title { font-size: 0.9rem; font-weight: 800; margin-bottom: 8px; }
+  .nt-gw   { color: #fbbf24; }
+  .nt-inst { color: #94a3b8; }
+  .nat-item { display: flex; gap: 6px; margin-bottom: 5px; }
+  .nat-text { font-size: 0.72rem; color: #cbd5e1; line-height: 1.4; }
+  .nat-verdict { margin-top: 10px; padding: 6px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; }
+  .nv-gw   { background: rgba(251,191,36,0.2);  color: #fbbf24; }
+  .nv-inst { background: rgba(100,116,139,0.2); color: #94a3b8; }
+
+  /* ── ENDPOINT TABLE ── */
+  .ep-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .ep-gw   { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); border-radius: 12px; padding: 16px; }
+  .ep-iface { background: rgba(14,165,233,0.1);  border: 1px solid rgba(14,165,233,0.35); border-radius: 12px; padding: 16px; }
+  .ep-title { font-size: 0.9rem; font-weight: 800; margin-bottom: 8px; }
+  .et-gw   { color: #34d399; }
+  .et-iface { color: #38bdf8; }
+  .ep-item { display: flex; gap: 6px; margin-bottom: 5px; }
+  .ep-text { font-size: 0.72rem; color: #cbd5e1; line-height: 1.4; }
+  .ep-verdict { margin-top: 10px; padding: 6px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; }
+  .ev-gw   { background: rgba(16,185,129,0.2);  color: #34d399; }
+  .ev-iface { background: rgba(14,165,233,0.2);  color: #38bdf8; }
+
+  /* ── CHIPS ── */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip { padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+  .ch-green  { background: rgba(16,185,129,0.2);  color: #34d399;  border: 1px solid rgba(16,185,129,0.3); }
+  .ch-red    { background: rgba(239,68,68,0.2);   color: #f87171;  border: 1px solid rgba(239,68,68,0.3); }
+  .ch-blue   { background: rgba(14,165,233,0.2);  color: #38bdf8;  border: 1px solid rgba(14,165,233,0.3); }
+  .ch-purple { background: rgba(168,85,247,0.2);  color: #c084fc;  border: 1px solid rgba(168,85,247,0.3); }
+  .ch-yellow { background: rgba(251,191,36,0.2);  color: #fbbf24;  border: 1px solid rgba(251,191,36,0.3); }
+  .ch-orange { background: rgba(251,146,60,0.2);  color: #fb923c;  border: 1px solid rgba(251,146,60,0.3); }
+
+  /* ── TRAP BOXES ── */
+  .trap-box { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; }
+  .trap-title { font-size: 0.76rem; font-weight: 700; color: #f87171; margin-bottom: 8px; }
+  .trap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .trap-item { }
+  .trap-label { font-size: 0.7rem; font-weight: 700; color: #fbbf24; margin-bottom: 4px; }
+  .trap-text  { font-size: 0.7rem; color: #cbd5e1; line-height: 1.5; }
+
+  /* ── SCENARIOS ── */
+  .scenarios-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 36px; }
+  .sc-card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 15px; border-left: 3px solid #f59e0b; }
+  .sc-label { font-size: 0.63rem; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px; }
+  .sc-q { font-size: 0.74rem; color: #9ca3af; margin-bottom: 9px; line-height: 1.5; font-style: italic; }
+  .sc-a { font-size: 0.79rem; color: #34d399; font-weight: 700; }
+
+  /* ── COMPARISON TABLE ── */
+  .compare-wrapper { margin-bottom: 36px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  th { background: #1e2a3a; color: #94a3b8; font-weight: 600; padding: 10px 12px; text-align: left; border-bottom: 2px solid #2d3748; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1a2332; vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr:last-child td { border-bottom: none; }
+  .yes { color: #34d399; font-weight: 700; }
+  .no  { color: #f87171; }
+  .svc-label { font-weight: 700; color: #e2e8f0; }
+
+  /* ── MEMORY AID ── */
+  .memory-box { background: #0d1424; border: 1px solid #1e2a3a; border-radius: 16px; padding: 24px 26px; margin-bottom: 10px; }
+  .memory-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 14px; }
+  .memory-item { text-align: center; }
+  .memory-emoji { font-size: 1.8rem; display: block; margin-bottom: 6px; }
+  .memory-name { font-size: 0.7rem; font-weight: 800; color: #e2e8f0; }
+  .memory-hint { font-size: 0.6rem; color: #6b7280; margin-top: 3px; line-height: 1.3; }
+
+  @media (max-width: 700px) {
+    .subnets-row, .nat-compare, .compare-two, .conn-grid, .ep-compare { flex-direction: column; display: flex; }
+    .conn-grid { grid-template-columns: 1fr; }
+    .scenarios-grid { grid-template-columns: 1fr; }
+    .trap-grid { grid-template-columns: 1fr; }
+    .memory-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<h1>🌐 VPC Deep Dive</h1>
+<p class="subtitle">Visual Guide — AWS Solutions Architect Associate • Lesson 4</p>
+
+<div class="wrapper">
+
+<!-- ── VPC ARCHITECTURE DIAGRAM ── -->
+<div class="vpc-diagram">
+  <div class="vpc-label">Full VPC Architecture — How Everything Connects</div>
+
+  <div class="internet-row"><div class="internet-cloud">🌐 Internet</div></div>
+  <div class="arrow-down">▼</div>
+  <div class="igw-box"><div class="igw-pill">🔀 Internet Gateway (IGW) — one per VPC</div></div>
+  <div class="arrow-down">▼</div>
+
+  <div class="vpc-region">
+    <div class="vpc-region-label">VPC — e.g. 10.0.0.0/16</div>
+    <div class="subnets-row">
+      <div class="subnet public-subnet">
+        <div class="subnet-label sl-public">✅ Public Subnet (10.0.1.0/24)</div>
+        <div class="subnet-item"><div class="si-icon">⚖️</div>Application Load Balancer</div>
+        <div class="subnet-item"><div class="si-icon">🔀</div>NAT Gateway → private subnet outbound</div>
+        <div class="subnet-item"><div class="si-icon">🖥️</div>Bastion Host (SSH jump box)</div>
+        <div style="font-size:0.65rem; color:#34d399; margin-top:8px; font-style:italic;">Route table: 0.0.0.0/0 → IGW ✅</div>
+      </div>
+      <div style="display:flex; align-items:center; padding:0 4px;">
+        <div style="text-align:center;">
+          <div style="font-size:0.65rem; color:#4b5563; margin-bottom:4px;">outbound only</div>
+          <div style="color:#374151; font-size:1.2rem;">→</div>
+        </div>
+      </div>
+      <div class="subnet private-subnet">
+        <div class="subnet-label sl-private">🔒 Private Subnet (10.0.2.0/24)</div>
+        <div class="subnet-item"><div class="si-icon">🖥️</div>EC2 App Servers (ASG)</div>
+        <div class="subnet-item"><div class="si-icon">🗄️</div>RDS Database (Multi-AZ)</div>
+        <div class="subnet-item"><div class="si-icon">⚡</div>ElastiCache Cluster</div>
+        <div style="font-size:0.65rem; color:#c084fc; margin-top:8px; font-style:italic;">Route table: no IGW route ❌ — internet via NAT GW only</div>
+      </div>
+    </div>
+
+    <div class="onprem-row">
+      <div class="onprem-item op-vpn">
+        <div class="op-title">🔐 VPN Connection</div>
+        <div class="op-text">Encrypted over internet · Quick setup · Virtual Private Gateway</div>
+      </div>
+      <div style="display:flex; align-items:center; color:#374151; font-size:0.8rem; padding:0 4px;">⇄</div>
+      <div class="onprem-item" style="background:rgba(100,116,139,0.1); border:1px dashed #4b5563; border-radius:10px; padding:10px;">
+        <div style="font-size:0.75rem; font-weight:700; color:#94a3b8; margin-bottom:3px;">🏢 On-Premises</div>
+        <div style="font-size:0.65rem; color:#6b7280;">Corporate Data Centre</div>
+      </div>
+      <div style="display:flex; align-items:center; color:#374151; font-size:0.8rem; padding:0 4px;">⇄</div>
+      <div class="onprem-item op-dx">
+        <div class="op-title">⚡ Direct Connect</div>
+        <div class="op-text">Private physical link · Consistent · Weeks to provision</div>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin-top:10px; font-size:0.68rem; color:#374151; font-style:italic;">
+      🛡️ NACLs protect subnets (stateless) &nbsp;|&nbsp; 🔒 Security Groups protect instances (stateful) &nbsp;|&nbsp; 📍 VPC Endpoints keep traffic off internet
+    </div>
+  </div>
+</div>
+
+<!-- ── SECURITY GROUPS vs NACLs ── -->
+<div class="svc-section">
+  <div class="svc-header sh-red">
+    <div class="svc-icon">🛡️</div>
+    <div>
+      <div class="svc-name" style="color:#f87171">Security Groups vs NACLs</div>
+      <div class="svc-tagline">Most tested VPC topic. One wrong word costs you the mark.</div>
+    </div>
+    <div class="svc-badge badge-red">#1 Exam Trap</div>
+  </div>
+  <div class="svc-body">
+    <div class="compare-two">
+      <div class="ct-card ct-sg">
+        <div class="ct-title">🔒 Security Group</div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text"><strong>Stateful</strong> — return traffic automatically allowed</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Applied at <strong>EC2 instance</strong> (ENI) level</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text"><strong>Allow rules only</strong> — cannot deny</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Evaluates <strong>all rules</strong> together</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Default: deny all inbound, allow all outbound</div></div>
+        <div class="ct-verdict cv-sg">Use when: controlling access to specific EC2 instances</div>
+      </div>
+      <div class="ct-card ct-nacl">
+        <div class="ct-title">🚧 NACL</div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text"><strong>Stateless</strong> — must allow BOTH inbound AND outbound</div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text">Applied at <strong>subnet level</strong></div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text"><strong>Allow AND Deny rules</strong> — can block IPs</div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text">Rules evaluated <strong>in order</strong> (lowest # first)</div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text">Default NACL: allows all. Custom NACL: denies all</div></div>
+        <div class="ct-verdict cv-nacl">Use when: blocking a specific IP address from a subnet</div>
+      </div>
+    </div>
+    <div class="trap-box">
+      <div class="trap-title">⚠️ The Stateless Trap — Most Missed Question</div>
+      <div class="trap-grid">
+        <div class="trap-item">
+          <div class="trap-label">The scenario</div>
+          <div class="trap-text">EC2 can receive requests but responses never get back to clients. NACL is suspected.</div>
+        </div>
+        <div class="trap-item">
+          <div class="trap-label">Why it happens</div>
+          <div class="trap-text">NACL allows inbound port 80 but blocks outbound ephemeral ports (1024–65535). Return traffic is blocked.</div>
+        </div>
+        <div class="trap-item">
+          <div class="trap-label">The fix</div>
+          <div class="trap-text">Add outbound NACL rule allowing ephemeral ports 1024–65535. Security Groups would handle this automatically (stateful).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── NAT GATEWAY vs NAT INSTANCE ── -->
+<div class="svc-section">
+  <div class="svc-header sh-yellow">
+    <div class="svc-icon">🔀</div>
+    <div>
+      <div class="svc-name" style="color:#fbbf24">NAT Gateway vs NAT Instance</div>
+      <div class="svc-tagline">Allows private subnet resources to access internet outbound — without being reachable inbound.</div>
+    </div>
+    <div class="svc-badge badge-yellow">Private → Internet</div>
+  </div>
+  <div class="svc-body">
+    <div class="nat-compare">
+      <div class="nat-gw">
+        <div class="nat-title nt-gw">⭐ NAT Gateway (Managed)</div>
+        <div class="nat-item"><div class="ct-icon">✅</div><div class="nat-text">AWS fully managed — no patching</div></div>
+        <div class="nat-item"><div class="ct-icon">✅</div><div class="nat-text">Highly available within AZ automatically</div></div>
+        <div class="nat-item"><div class="ct-icon">✅</div><div class="nat-text">Scales up to <strong>45 Gbps</strong> automatically</div></div>
+        <div class="nat-item"><div class="ct-icon">✅</div><div class="nat-text">Lives in <strong>public subnet</strong></div></div>
+        <div class="nat-item"><div class="ct-icon">❌</div><div class="nat-text">Cannot be used as bastion host</div></div>
+        <div class="nat-item"><div class="ct-icon">⚠️</div><div class="nat-text">Create one per AZ for full HA</div></div>
+        <div class="nat-verdict nv-gw">Exam default choice — almost always correct</div>
+      </div>
+      <div class="nat-inst">
+        <div class="nat-title nt-inst">NAT Instance (Self-managed EC2)</div>
+        <div class="nat-item"><div class="ct-icon">⚠️</div><div class="nat-text">You manage patching, scaling, HA yourself</div></div>
+        <div class="nat-item"><div class="ct-icon">⚠️</div><div class="nat-text">Single point of failure unless you add HA</div></div>
+        <div class="nat-item"><div class="ct-icon">⚠️</div><div class="nat-text">Must <strong>disable source/destination check</strong></div></div>
+        <div class="nat-item"><div class="ct-icon">✅</div><div class="nat-text">Can be used as <strong>bastion host</strong></div></div>
+        <div class="nat-item"><div class="ct-icon">✅</div><div class="nat-text">Cheaper for very low traffic</div></div>
+        <div class="nat-verdict nv-inst">Choose only if: "bastion host" or "cheapest possible"</div>
+      </div>
+    </div>
+    <div class="chips">
+      <div class="chip ch-yellow">NAT Gateway lives in PUBLIC subnet</div>
+      <div class="chip ch-purple">Private subnet route table → NAT Gateway</div>
+      <div class="chip ch-orange">One NAT Gateway per AZ for full HA</div>
+      <div class="chip ch-red">NAT Gateway ≠ Internet Gateway (different things!)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONNECTIVITY ── -->
+<div class="svc-section">
+  <div class="svc-header sh-purple">
+    <div class="svc-icon">🔗</div>
+    <div>
+      <div class="svc-name" style="color:#c084fc">VPC Connectivity Options</div>
+      <div class="svc-tagline">Peering vs Transit Gateway vs Endpoints — three very different solutions.</div>
+    </div>
+    <div class="svc-badge badge-purple">Connectivity</div>
+  </div>
+  <div class="svc-body">
+    <div class="conn-grid">
+      <div class="conn-card cc-peer">
+        <div class="cc-title cct-peer">🔗 VPC Peering</div>
+        <div class="cc-item"><div class="cc-dot cd-peer"></div><div class="cc-text">Direct 1-to-1 connection between 2 VPCs</div></div>
+        <div class="cc-item"><div class="cc-dot cd-peer"></div><div class="cc-text">Works across regions and accounts</div></div>
+        <div class="cc-item"><div class="cc-dot cd-peer"></div><div class="cc-text"><strong>NOT transitive</strong> — A↔B↔C ≠ A↔C</div></div>
+        <div class="cc-item"><div class="cc-dot cd-peer"></div><div class="cc-text">No overlapping CIDR blocks</div></div>
+        <div class="cc-item"><div class="cc-dot cd-peer"></div><div class="cc-text">Must update route tables in both VPCs</div></div>
+        <div class="cc-trigger ct-peer">Best for: 2–3 VPCs, simple setup</div>
+      </div>
+      <div class="conn-card cc-tgw">
+        <div class="cc-title cct-tgw">🌐 Transit Gateway</div>
+        <div class="cc-item"><div class="cc-dot cd-tgw"></div><div class="cc-text">Hub-and-spoke — all VPCs connect to TGW</div></div>
+        <div class="cc-item"><div class="cc-dot cd-tgw"></div><div class="cc-text"><strong>Transitive routing supported</strong></div></div>
+        <div class="cc-item"><div class="cc-dot cd-tgw"></div><div class="cc-text">Works across accounts and regions</div></div>
+        <div class="cc-item"><div class="cc-dot cd-tgw"></div><div class="cc-text">Connects VPCs + VPN + Direct Connect</div></div>
+        <div class="cc-item"><div class="cc-dot cd-tgw"></div><div class="cc-text">10 VPCs = 10 connections (not 45!)</div></div>
+        <div class="cc-trigger ct-tgw">Best for: many VPCs + on-premises centrally</div>
+      </div>
+      <div class="conn-card cc-ep">
+        <div class="cc-title cct-ep">📍 VPC Endpoints</div>
+        <div class="cc-item"><div class="cc-dot cd-ep"></div><div class="cc-text">Access AWS services <strong>without internet</strong></div></div>
+        <div class="cc-item"><div class="cc-dot cd-ep"></div><div class="cc-text"><strong>Gateway Endpoint</strong>: FREE, S3 + DynamoDB only</div></div>
+        <div class="cc-item"><div class="cc-dot cd-ep"></div><div class="cc-text"><strong>Interface Endpoint</strong>: paid, most other services</div></div>
+        <div class="cc-item"><div class="cc-dot cd-ep"></div><div class="cc-text">Traffic stays on AWS private network</div></div>
+        <div class="cc-item"><div class="cc-dot cd-ep"></div><div class="cc-text">No NAT Gateway or IGW needed</div></div>
+        <div class="cc-trigger ct-ep">Best for: private access to S3, DynamoDB, SSM</div>
+      </div>
+    </div>
+
+    <!-- Endpoint detail -->
+    <div class="ep-compare">
+      <div class="ep-gw">
+        <div class="ep-title et-gw">🟢 Gateway Endpoint — FREE</div>
+        <div class="ep-item"><div class="ct-icon">✅</div><div class="ep-text"><strong>S3</strong> and <strong>DynamoDB</strong> only</div></div>
+        <div class="ep-item"><div class="ct-icon">✅</div><div class="ep-text">Added to route table (not an ENI)</div></div>
+        <div class="ep-item"><div class="ct-icon">✅</div><div class="ep-text">No cost per hour or per GB</div></div>
+        <div class="ep-verdict ev-gw">Memory: Gateway = Gratuitous (free) = S3 + DynamoDB</div>
+      </div>
+      <div class="ep-iface">
+        <div class="ep-title et-iface">🔵 Interface Endpoint — Paid</div>
+        <div class="ep-item"><div class="ct-icon">⚠️</div><div class="ep-text">Most other services: SSM, KMS, SNS, SQS, API GW...</div></div>
+        <div class="ep-item"><div class="ct-icon">⚠️</div><div class="ep-text">Creates an <strong>ENI</strong> in your subnet</div></div>
+        <div class="ep-item"><div class="ct-icon">⚠️</div><div class="ep-text">Charged per hour + per GB of data</div></div>
+        <div class="ep-verdict ev-iface">Use when: private access to any non-S3/DynamoDB service</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── VPN vs DIRECT CONNECT ── -->
+<div class="svc-section">
+  <div class="svc-header sh-blue">
+    <div class="svc-icon">🏢</div>
+    <div>
+      <div class="svc-name" style="color:#38bdf8">VPN vs Direct Connect</div>
+      <div class="svc-tagline">Both connect on-premises to AWS. Speed vs cost vs reliability trade-off.</div>
+    </div>
+    <div class="svc-badge badge-blue">On-Premises → AWS</div>
+  </div>
+  <div class="svc-body">
+    <div class="compare-two">
+      <div class="ct-card" style="background:rgba(251,146,60,0.1); border:1px solid rgba(251,146,60,0.35);">
+        <div class="ct-title" style="color:#fb923c;">🔐 Site-to-Site VPN</div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text"><strong>Encrypted</strong> tunnel over public internet</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Quick setup — <strong>minutes to hours</strong></div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Cheaper</div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text">Reliability depends on internet quality</div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text">Variable latency</div></div>
+        <div class="ct-row"><div class="ct-icon">📌</div><div class="ct-text">Uses <strong>Virtual Private Gateway</strong> (AWS side) + <strong>Customer Gateway</strong> (on-prem)</div></div>
+        <div class="ct-verdict" style="background:rgba(251,146,60,0.2); color:#fb923c;">Trigger: "quick", "encrypted", "low cost", "internet-based"</div>
+      </div>
+      <div class="ct-card" style="background:rgba(14,165,233,0.1); border:1px solid rgba(14,165,233,0.35);">
+        <div class="ct-title" style="color:#38bdf8;">⚡ Direct Connect (DX)</div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text"><strong>Private physical connection</strong> — not over internet</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Consistent, <strong>low latency</strong> performance</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">High bandwidth — up to 100 Gbps</div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text">Takes <strong>weeks to months</strong> to provision</div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text">More expensive</div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text"><strong>Not encrypted by default</strong> — add VPN over DX for encryption</div></div>
+        <div class="ct-verdict" style="background:rgba(14,165,233,0.2); color:#38bdf8;">Trigger: "consistent", "private", "high bandwidth", "compliance"</div>
+      </div>
+    </div>
+    <div class="chips">
+      <div class="chip ch-orange">DX + VPN backup = most resilient hybrid setup</div>
+      <div class="chip ch-red">Direct Connect NOT encrypted by default!</div>
+      <div class="chip ch-blue">Add VPN over Direct Connect for encryption + private link</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── COMPARISON TABLE ── -->
+<div class="compare-wrapper">
+  <div class="section-title">📊 VPC Key Concepts at a Glance</div>
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Level</th><th>Stateful?</th><th>Can Deny?</th><th>Key Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="svc-label">🔒 Security Group</span></td><td>Instance (ENI)</td><td><span class="yes">✓ Stateful</span></td><td><span class="no">✗ Allow only</span></td><td>Control access per EC2 instance</td></tr>
+      <tr><td><span class="svc-label">🚧 NACL</span></td><td>Subnet</td><td><span class="no">✗ Stateless</span></td><td><span class="yes">✓ Allow + Deny</span></td><td>Block specific IPs, subnet-level firewall</td></tr>
+      <tr><td><span class="svc-label">🔀 NAT Gateway</span></td><td>AZ (public subnet)</td><td>—</td><td>—</td><td>Private EC2 → internet (outbound only)</td></tr>
+      <tr><td><span class="svc-label">🌐 IGW</span></td><td>VPC</td><td>—</td><td>—</td><td>VPC → internet (public subnets)</td></tr>
+      <tr><td><span class="svc-label">🔗 VPC Peering</span></td><td>VPC-to-VPC</td><td>—</td><td>—</td><td>Connect 2 VPCs directly (not transitive)</td></tr>
+      <tr><td><span class="svc-label">🌐 Transit Gateway</span></td><td>Multi-VPC hub</td><td>—</td><td>—</td><td>Hub for many VPCs + on-premises</td></tr>
+      <tr><td><span class="svc-label">📍 Gateway Endpoint</span></td><td>VPC route table</td><td>—</td><td>—</td><td>Free private access to S3 + DynamoDB</td></tr>
+      <tr><td><span class="svc-label">📍 Interface Endpoint</span></td><td>Subnet (ENI)</td><td>—</td><td>—</td><td>Paid private access to most AWS services</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── EXAM SCENARIOS ── -->
+<div class="section-title">🎯 Exam Scenario Quick-Fire</div>
+<div class="scenarios-grid">
+  <div class="sc-card"><div class="sc-label">Scenario 1</div><div class="sc-q">"Private EC2 needs to download OS patches from internet"</div><div class="sc-a">→ NAT Gateway in public subnet</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 2</div><div class="sc-q">"Block a specific malicious IP from reaching the subnet"</div><div class="sc-a">→ NACL deny rule</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 3</div><div class="sc-q">"EC2 receives traffic but responses never return — NACL involved"</div><div class="sc-a">→ Add NACL outbound rule for ephemeral ports 1024–65535</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 4</div><div class="sc-q">"Private EC2 needs to access S3 without going over internet — cheapest"</div><div class="sc-a">→ Gateway Endpoint (free)</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 5</div><div class="sc-q">"Connect 3 VPCs — VPC A needs to talk to VPC C through VPC B"</div><div class="sc-a">→ Transit Gateway (VPC Peering not transitive)</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 6</div><div class="sc-q">"Need to connect on-premises to AWS quickly and cheaply"</div><div class="sc-a">→ Site-to-Site VPN</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 7</div><div class="sc-q">"Need consistent low latency private connection from data centre to AWS"</div><div class="sc-a">→ Direct Connect</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 8</div><div class="sc-q">"Direct Connect is set up but needs encryption for compliance"</div><div class="sc-a">→ VPN over Direct Connect</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 9</div><div class="sc-q">"Private Lambda needs to call SSM Parameter Store privately"</div><div class="sc-a">→ Interface Endpoint for SSM</div></div>
+</div>
+
+<!-- ── MEMORY AID ── -->
+<div class="memory-box">
+  <div class="section-title" style="text-align:left; margin-bottom:4px;">🧠 Memory Aid</div>
+  <div style="font-size:0.78rem; color:#6b7280; margin-bottom:4px;">One trigger per concept — instant recall under exam pressure</div>
+  <div class="memory-grid">
+    <div class="memory-item"><span class="memory-emoji">🔒</span><div class="memory-name" style="color:#34d399">Security Group</div><div class="memory-hint">Stateful instance allow-only</div></div>
+    <div class="memory-item"><span class="memory-emoji">🚧</span><div class="memory-name" style="color:#f87171">NACL</div><div class="memory-hint">Stateless subnet block IPs deny</div></div>
+    <div class="memory-item"><span class="memory-emoji">🔀</span><div class="memory-name" style="color:#fbbf24">NAT Gateway</div><div class="memory-hint">Private EC2 → internet outbound only</div></div>
+    <div class="memory-item"><span class="memory-emoji">🔗</span><div class="memory-name" style="color:#38bdf8">VPC Peering</div><div class="memory-hint">Not transitive A↔B↔C ≠ A↔C</div></div>
+    <div class="memory-item"><span class="memory-emoji">🌐</span><div class="memory-name" style="color:#c084fc">Transit Gateway</div><div class="memory-hint">Many VPCs hub transitive on-prem</div></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
