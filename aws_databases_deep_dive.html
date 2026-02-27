@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Databases Deep Dive — Visual Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0a0f1e; color: #fff; min-height: 100vh; padding: 30px 20px; }
+  h1 { text-align: center; font-size: 1.8rem; color: #fff; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #8892a4; font-size: 0.95rem; margin-bottom: 40px; }
+  .section-title { text-align: center; font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin-bottom: 20px; }
+  .wrapper { max-width: 980px; margin: 0 auto; }
+
+  /* ── DECISION TREE ── */
+  .tree-box { background: #0d1424; border: 1px solid #1e2a3a; border-radius: 16px; padding: 24px 28px; margin-bottom: 36px; }
+  .tree-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+  .tree-branch { border-radius: 12px; padding: 16px; }
+  .tb-blue   { background: rgba(14,165,233,0.1);  border: 1px solid rgba(14,165,233,0.35); }
+  .tb-green  { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); }
+  .tb-purple { background: rgba(168,85,247,0.1);  border: 1px solid rgba(168,85,247,0.35); }
+  .tb-question { font-size: 0.82rem; font-weight: 800; margin-bottom: 10px; }
+  .tq-blue   { color: #38bdf8; }
+  .tq-green  { color: #34d399; }
+  .tq-purple { color: #c084fc; }
+  .tb-item { display: flex; gap: 8px; margin-bottom: 6px; align-items: flex-start; }
+  .tb-arrow { font-size: 0.72rem; color: #4b5563; margin-top: 2px; flex-shrink: 0; }
+  .tb-text { font-size: 0.73rem; color: #cbd5e1; line-height: 1.4; }
+  .ans-blue   { color: #38bdf8; font-weight: 700; }
+  .ans-green  { color: #34d399; font-weight: 700; }
+  .ans-orange { color: #fb923c; font-weight: 700; }
+  .ans-purple { color: #c084fc; font-weight: 700; }
+  .ans-red    { color: #f87171; font-weight: 700; }
+  .ans-yellow { color: #fbbf24; font-weight: 700; }
+
+  /* ── SERVICE SECTIONS ── */
+  .svc-section { margin-bottom: 28px; }
+  .svc-header { display: flex; align-items: center; gap: 14px; padding: 15px 20px; border-radius: 14px 14px 0 0; border-bottom: 2px solid transparent; }
+  .sh-blue   { background: rgba(14,165,233,0.15);  border-color: #38bdf8; }
+  .sh-green  { background: rgba(16,185,129,0.15);  border-color: #34d399; }
+  .sh-orange { background: rgba(251,146,60,0.15);  border-color: #fb923c; }
+  .sh-purple { background: rgba(168,85,247,0.15);  border-color: #c084fc; }
+  .sh-yellow { background: rgba(251,191,36,0.15);  border-color: #fbbf24; }
+  .svc-icon { font-size: 1.8rem; }
+  .svc-name { font-size: 1.1rem; font-weight: 800; }
+  .svc-tagline { font-size: 0.76rem; opacity: 0.75; margin-top: 2px; }
+  .svc-badge { margin-left: auto; padding: 3px 12px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
+  .badge-blue   { background: rgba(14,165,233,0.3);  color: #38bdf8; }
+  .badge-green  { background: rgba(16,185,129,0.3);  color: #34d399; }
+  .badge-orange { background: rgba(251,146,60,0.3);  color: #fb923c; }
+  .badge-purple { background: rgba(168,85,247,0.3);  color: #c084fc; }
+  .badge-yellow { background: rgba(251,191,36,0.3);  color: #fbbf24; }
+  .badge-red    { background: rgba(239,68,68,0.3);   color: #f87171; }
+  .svc-body { background: #0d1424; border: 1px solid #1e2a3a; border-top: none; border-radius: 0 0 14px 14px; padding: 18px; }
+
+  /* ── MULTI AZ vs READ REPLICA ── */
+  .compare-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .ct-card { border-radius: 12px; padding: 16px; }
+  .ct-multiaz { background: rgba(14,165,233,0.1);  border: 2px solid rgba(14,165,233,0.5); }
+  .ct-rr      { background: rgba(16,185,129,0.1);  border: 2px solid rgba(16,185,129,0.5); }
+  .ct-aurora  { background: rgba(251,146,60,0.1);  border: 1px solid rgba(251,146,60,0.35); }
+  .ct-rds     { background: rgba(100,116,139,0.1); border: 1px solid rgba(100,116,139,0.35); }
+  .ct-title { font-size: 0.95rem; font-weight: 800; margin-bottom: 10px; }
+  .ctt-multiaz { color: #38bdf8; }
+  .ctt-rr      { color: #34d399; }
+  .ctt-aurora  { color: #fb923c; }
+  .ctt-rds     { color: #94a3b8; }
+  .ct-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: flex-start; }
+  .ct-icon { font-size: 0.85rem; flex-shrink: 0; margin-top: 1px; }
+  .ct-text { font-size: 0.73rem; color: #cbd5e1; line-height: 1.4; }
+  .ct-verdict { margin-top: 10px; padding: 7px 12px; border-radius: 8px; font-size: 0.71rem; font-weight: 700; }
+  .cv-multiaz { background: rgba(14,165,233,0.2);  color: #38bdf8; }
+  .cv-rr      { background: rgba(16,185,129,0.2);  color: #34d399; }
+
+  /* ── TRAP BOX ── */
+  .trap-box { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; }
+  .trap-title { font-size: 0.76rem; font-weight: 700; color: #f87171; margin-bottom: 10px; }
+  .trap-table { width: 100%; }
+  .trap-table td { font-size: 0.72rem; padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .trap-table tr:last-child td { border-bottom: none; }
+  .trap-keyword { color: #94a3b8; }
+  .trap-answer  { color: #34d399; font-weight: 700; }
+
+  /* ── DYNAMODB ── */
+  .dynamo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+  .dyn-card { border-radius: 12px; padding: 14px; }
+  .dc-1 { background: rgba(251,191,36,0.1);  border: 1px solid rgba(251,191,36,0.35); }
+  .dc-2 { background: rgba(14,165,233,0.1);  border: 1px solid rgba(14,165,233,0.35); }
+  .dc-3 { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); }
+  .dc-4 { background: rgba(168,85,247,0.1);  border: 1px solid rgba(168,85,247,0.35); }
+  .dc-5 { background: rgba(251,146,60,0.1);  border: 1px solid rgba(251,146,60,0.35); }
+  .dc-6 { background: rgba(239,68,68,0.1);   border: 1px solid rgba(239,68,68,0.35); }
+  .dyn-title { font-size: 0.85rem; font-weight: 800; margin-bottom: 8px; }
+  .dt-1 { color: #fbbf24; } .dt-2 { color: #38bdf8; } .dt-3 { color: #34d399; }
+  .dt-4 { color: #c084fc; } .dt-5 { color: #fb923c; } .dt-6 { color: #f87171; }
+  .dyn-item { display: flex; gap: 6px; margin-bottom: 5px; align-items: flex-start; }
+  .dyn-dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .dd-1 { background: #fbbf24; } .dd-2 { background: #38bdf8; } .dd-3 { background: #34d399; }
+  .dd-4 { background: #c084fc; } .dd-5 { background: #fb923c; } .dd-6 { background: #f87171; }
+  .dyn-text { font-size: 0.71rem; color: #cbd5e1; line-height: 1.4; }
+
+  /* ── SPECIAL DBS ── */
+  .special-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .sp-card { border-radius: 12px; padding: 14px; }
+  .sp-neptune   { background: rgba(168,85,247,0.1);  border: 1px solid rgba(168,85,247,0.35); }
+  .sp-qldb      { background: rgba(14,165,233,0.1);  border: 1px solid rgba(14,165,233,0.35); }
+  .sp-timestream{ background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); }
+  .sp-docdb     { background: rgba(251,191,36,0.1);  border: 1px solid rgba(251,191,36,0.35); }
+  .sp-keyspaces { background: rgba(251,146,60,0.1);  border: 1px solid rgba(251,146,60,0.35); }
+  .sp-redshift  { background: rgba(239,68,68,0.1);   border: 1px solid rgba(239,68,68,0.35); }
+  .sp-icon { font-size: 1.6rem; margin-bottom: 6px; }
+  .sp-name { font-size: 0.85rem; font-weight: 800; margin-bottom: 4px; }
+  .sn-neptune    { color: #c084fc; }
+  .sn-qldb       { color: #38bdf8; }
+  .sn-timestream { color: #34d399; }
+  .sn-docdb      { color: #fbbf24; }
+  .sn-keyspaces  { color: #fb923c; }
+  .sn-redshift   { color: #f87171; }
+  .sp-desc { font-size: 0.71rem; color: #cbd5e1; line-height: 1.4; margin-bottom: 6px; }
+  .sp-trigger { font-size: 0.67rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; display: inline-block; }
+  .st-neptune    { background: rgba(168,85,247,0.25); color: #c084fc; }
+  .st-qldb       { background: rgba(14,165,233,0.25); color: #38bdf8; }
+  .st-timestream { background: rgba(16,185,129,0.25); color: #34d399; }
+  .st-docdb      { background: rgba(251,191,36,0.25); color: #fbbf24; }
+  .st-keyspaces  { background: rgba(251,146,60,0.25); color: #fb923c; }
+  .st-redshift   { background: rgba(239,68,68,0.25);  color: #f87171; }
+
+  /* ── CHIPS ── */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip { padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+  .ch-blue   { background: rgba(14,165,233,0.2);  color: #38bdf8;  border: 1px solid rgba(14,165,233,0.3); }
+  .ch-green  { background: rgba(16,185,129,0.2);  color: #34d399;  border: 1px solid rgba(16,185,129,0.3); }
+  .ch-orange { background: rgba(251,146,60,0.2);  color: #fb923c;  border: 1px solid rgba(251,146,60,0.3); }
+  .ch-purple { background: rgba(168,85,247,0.2);  color: #c084fc;  border: 1px solid rgba(168,85,247,0.3); }
+  .ch-yellow { background: rgba(251,191,36,0.2);  color: #fbbf24;  border: 1px solid rgba(251,191,36,0.3); }
+  .ch-red    { background: rgba(239,68,68,0.2);   color: #f87171;  border: 1px solid rgba(239,68,68,0.3); }
+
+  /* ── COMPARISON TABLE ── */
+  .compare-wrapper { margin-bottom: 36px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  th { background: #1e2a3a; color: #94a3b8; font-weight: 600; padding: 10px 12px; text-align: left; border-bottom: 2px solid #2d3748; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1a2332; vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr:last-child td { border-bottom: none; }
+  .yes { color: #34d399; font-weight: 700; }
+  .no  { color: #f87171; }
+  .svc-label { font-weight: 700; color: #e2e8f0; }
+
+  /* ── SCENARIOS ── */
+  .scenarios-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 36px; }
+  .sc-card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 14px; border-left: 3px solid #f59e0b; }
+  .sc-label { font-size: 0.63rem; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px; }
+  .sc-q { font-size: 0.73rem; color: #9ca3af; margin-bottom: 9px; line-height: 1.5; font-style: italic; }
+  .sc-a { font-size: 0.78rem; color: #34d399; font-weight: 700; }
+
+  /* ── MEMORY AID ── */
+  .memory-box { background: #0d1424; border: 1px solid #1e2a3a; border-radius: 16px; padding: 24px 26px; margin-bottom: 10px; }
+  .memory-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 14px; }
+  .memory-item { text-align: center; }
+  .memory-emoji { font-size: 1.7rem; display: block; margin-bottom: 5px; }
+  .memory-name { font-size: 0.68rem; font-weight: 800; color: #e2e8f0; }
+  .memory-hint { font-size: 0.59rem; color: #6b7280; margin-top: 3px; line-height: 1.3; }
+
+  @media (max-width: 700px) {
+    .tree-grid, .dynamo-grid, .special-grid { grid-template-columns: 1fr 1fr; }
+    .compare-two { grid-template-columns: 1fr; }
+    .scenarios-grid { grid-template-columns: 1fr; }
+    .memory-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<h1>🗄️ Databases Deep Dive</h1>
+<p class="subtitle">Visual Guide — AWS Solutions Architect Associate • Lesson 6</p>
+
+<div class="wrapper">
+
+<!-- ── DECISION TREE ── -->
+<div class="tree-box">
+  <div class="section-title" style="text-align:left; margin-bottom:4px;">⚡ Which Database Do I Use?</div>
+  <div style="font-size:0.78rem; color:#6b7280; margin-bottom:16px;">Answer these questions to pick the right one every time</div>
+  <div class="tree-grid">
+    <div class="tree-branch tb-blue">
+      <div class="tb-question tq-blue">📊 Relational SQL?</div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">Managed MySQL/Postgres/Oracle<br><span class="ans-blue">→ RDS</span></div></div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">Highest performance + auto HA<br><span class="ans-orange">→ Aurora</span></div></div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">Petabyte analytics / reporting<br><span class="ans-red">→ Redshift</span></div></div>
+    </div>
+    <div class="tree-branch tb-green">
+      <div class="tb-question tq-green">🔧 NoSQL / Special?</div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">Key-value / flexible schema<br><span class="ans-yellow">→ DynamoDB</span></div></div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">JSON documents / MongoDB<br><span class="ans-yellow">→ DocumentDB</span></div></div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">Relationships / social graph<br><span class="ans-purple">→ Neptune</span></div></div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">Cassandra workloads<br><span class="ans-orange">→ Keyspaces</span></div></div>
+    </div>
+    <div class="tree-branch tb-purple">
+      <div class="tb-question tq-purple">⚡ Speed / Special Purpose?</div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">Cache any DB (ms → μs)<br><span class="ans-red">→ ElastiCache (Redis)</span></div></div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">DynamoDB μs reads<br><span class="ans-yellow">→ DAX</span></div></div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">IoT / time series data<br><span class="ans-green">→ Timestream</span></div></div>
+      <div class="tb-item"><div class="tb-arrow">▸</div><div class="tb-text">Immutable audit trail<br><span class="ans-blue">→ QLDB</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── RDS ── -->
+<div class="svc-section">
+  <div class="svc-header sh-blue">
+    <div class="svc-icon">🗄️</div>
+    <div>
+      <div class="svc-name" style="color:#38bdf8">RDS — Relational Database Service</div>
+      <div class="svc-tagline">Managed MySQL, PostgreSQL, Oracle, SQL Server, MariaDB.</div>
+    </div>
+    <div class="svc-badge badge-blue">SQL • Managed</div>
+  </div>
+  <div class="svc-body">
+
+    <!-- Multi-AZ vs Read Replica -->
+    <div style="font-size:0.78rem; font-weight:700; color:#f87171; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">⚠️ #1 Exam Trap — Multi-AZ vs Read Replica</div>
+    <div class="compare-two">
+      <div class="ct-card ct-multiaz">
+        <div class="ct-title ctt-multiaz">🛡️ Multi-AZ — AVAILABILITY</div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text"><strong>Synchronous</strong> replication to standby</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Automatic failover (1–2 min)</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Backups taken from standby</div></div>
+        <div class="ct-row"><div class="ct-icon">❌</div><div class="ct-text">Standby <strong>CANNOT be read</strong> — only for failover</div></div>
+        <div class="ct-row"><div class="ct-icon">❌</div><div class="ct-text">Does NOT improve read performance</div></div>
+        <div class="ct-verdict cv-multiaz">Use when: "survive AZ failure" / "automatic failover" / "HA"</div>
+      </div>
+      <div class="ct-card ct-rr">
+        <div class="ct-title ctt-rr">📖 Read Replica — PERFORMANCE</div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text"><strong>Asynchronous</strong> replication</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Replicas <strong>CAN be read</strong> — offload traffic</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Up to 5 replicas (15 for Aurora)</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Can be in different region</div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text">Can be promoted to standalone DB</div></div>
+        <div class="ct-verdict cv-rr">Use when: "read traffic" / "analytics" / "reporting overload"</div>
+      </div>
+    </div>
+
+    <div class="trap-box">
+      <div class="trap-title">⚠️ Keyword → Answer — Never Confuse These</div>
+      <table class="trap-table">
+        <tr><td class="trap-keyword">"survive AZ failure automatically"</td><td class="trap-answer">→ Multi-AZ</td></tr>
+        <tr><td class="trap-keyword">"overwhelmed with read/analytics queries"</td><td class="trap-answer">→ Read Replica</td></tr>
+        <tr><td class="trap-keyword">"need both HA and read performance"</td><td class="trap-answer">→ Multi-AZ + Read Replica</td></tr>
+        <tr><td class="trap-keyword">"Lambda connecting to RDS — too many connections"</td><td class="trap-answer">→ RDS Proxy</td></tr>
+        <tr><td class="trap-keyword">"point-in-time recovery"</td><td class="trap-answer">→ Automated Backups</td></tr>
+      </table>
+    </div>
+    <div class="chips">
+      <div class="chip ch-blue">RDS Proxy = Lambda + RDS connection pooling</div>
+      <div class="chip ch-green">Automated backups → 5-min point-in-time recovery</div>
+      <div class="chip ch-yellow">Manual snapshots → kept until YOU delete them</div>
+      <div class="chip ch-orange">Storage Auto Scaling → set max threshold, AWS handles rest</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── AURORA ── -->
+<div class="svc-section">
+  <div class="svc-header sh-orange">
+    <div class="svc-icon">⚡</div>
+    <div>
+      <div class="svc-name" style="color:#fb923c">Aurora — AWS-Native High Performance DB</div>
+      <div class="svc-tagline">5x faster than MySQL RDS. Auto-scales to 128TB. 6 copies across 3 AZs.</div>
+    </div>
+    <div class="svc-badge badge-orange">SQL • High Performance</div>
+  </div>
+  <div class="svc-body">
+    <div class="compare-two">
+      <div class="ct-card ct-aurora">
+        <div class="ct-title ctt-aurora">🚀 Aurora vs RDS</div>
+        <div class="ct-row"><div class="ct-icon">⚡</div><div class="ct-text"><strong>5x</strong> faster than MySQL, 3x faster than Postgres</div></div>
+        <div class="ct-row"><div class="ct-icon">📦</div><div class="ct-text">Auto-scales storage <strong>10GB → 128TB</strong></div></div>
+        <div class="ct-row"><div class="ct-icon">🔄</div><div class="ct-text"><strong>6 copies</strong> across <strong>3 AZs</strong> automatically</div></div>
+        <div class="ct-row"><div class="ct-icon">⏱️</div><div class="ct-text">Failover in <strong>&lt;30 seconds</strong> (RDS = 1–2 min)</div></div>
+        <div class="ct-row"><div class="ct-icon">📖</div><div class="ct-text">Up to <strong>15 read replicas</strong> (RDS = 5)</div></div>
+        <div class="ct-row"><div class="ct-icon">💰</div><div class="ct-text">More expensive than RDS</div></div>
+      </div>
+      <div class="ct-card ct-rds">
+        <div class="ct-title ctt-rds">🌍 Aurora Global Database</div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">1 primary + up to <strong>5 secondary regions</strong></div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Replication lag <strong>&lt;1 second</strong> across regions</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text">Promote secondary in <strong>&lt;1 minute</strong> if primary fails</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text"><strong>Aurora Serverless</strong> — scales to zero, pay per second</div></div>
+        <div class="ct-row"><div class="ct-icon">✅</div><div class="ct-text"><strong>Writer Endpoint</strong> → primary | <strong>Reader Endpoint</strong> → replicas</div></div>
+        <div class="ct-row"><div class="ct-icon">⚠️</div><div class="ct-text">Serverless = cold start latency (not for steady traffic)</div></div>
+      </div>
+    </div>
+    <div class="chips">
+      <div class="chip ch-orange">Failover &lt;30s → Aurora. Failover 1–2min → RDS Multi-AZ</div>
+      <div class="chip ch-yellow">Aurora Serverless = infrequent / unpredictable workloads</div>
+      <div class="chip ch-green">Aurora Global = cross-region DR with &lt;1s replication</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DYNAMODB ── -->
+<div class="svc-section">
+  <div class="svc-header sh-yellow">
+    <div class="svc-icon">⚡</div>
+    <div>
+      <div class="svc-name" style="color:#fbbf24">DynamoDB — Serverless NoSQL</div>
+      <div class="svc-tagline">Key-value + document. Millisecond reads. Infinite scale. No servers to manage.</div>
+    </div>
+    <div class="svc-badge badge-yellow">NoSQL • Serverless</div>
+  </div>
+  <div class="svc-body">
+    <div class="dynamo-grid">
+      <div class="dyn-card dc-1">
+        <div class="dyn-title dt-1">📖 Read Consistency</div>
+        <div class="dyn-item"><div class="dyn-dot dd-1"></div><div class="dyn-text"><strong>Eventually Consistent</strong> — default, cheaper (0.5 RCU), may be slightly stale</div></div>
+        <div class="dyn-item"><div class="dyn-dot dd-1"></div><div class="dyn-text"><strong>Strongly Consistent</strong> — always fresh, costs 1 RCU, set ConsistentRead=true</div></div>
+      </div>
+      <div class="dyn-card dc-2">
+        <div class="dyn-title dt-2">⚡ Capacity Modes</div>
+        <div class="dyn-item"><div class="dyn-dot dd-2"></div><div class="dyn-text"><strong>Provisioned</strong> — set RCU/WCU manually. Cheaper for predictable load.</div></div>
+        <div class="dyn-item"><div class="dyn-dot dd-2"></div><div class="dyn-text"><strong>On-Demand</strong> — pay per request, auto-scales. Better for unpredictable.</div></div>
+      </div>
+      <div class="dyn-card dc-3">
+        <div class="dyn-title dt-3">🌍 Global Tables</div>
+        <div class="dyn-item"><div class="dyn-dot dd-3"></div><div class="dyn-text">Multi-region, multi-active — any region can read AND write</div></div>
+        <div class="dyn-item"><div class="dyn-dot dd-3"></div><div class="dyn-text">Async replication — eventually consistent across regions</div></div>
+      </div>
+      <div class="dyn-card dc-4">
+        <div class="dyn-title dt-4">📡 DynamoDB Streams</div>
+        <div class="dyn-item"><div class="dyn-dot dd-4"></div><div class="dyn-text">Captures INSERT, UPDATE, DELETE changes in order</div></div>
+        <div class="dyn-item"><div class="dyn-dot dd-4"></div><div class="dyn-text">24hr retention. Trigger Lambda on data changes.</div></div>
+      </div>
+      <div class="dyn-card dc-5">
+        <div class="dyn-title dt-5">🗂️ Indexes</div>
+        <div class="dyn-item"><div class="dyn-dot dd-5"></div><div class="dyn-text"><strong>LSI</strong> — must create at table creation. Same partition key.</div></div>
+        <div class="dyn-item"><div class="dyn-dot dd-5"></div><div class="dyn-text"><strong>GSI</strong> — add any time. Different partition + sort key.</div></div>
+      </div>
+      <div class="dyn-card dc-6">
+        <div class="dyn-title dt-6">⏰ TTL + DAX</div>
+        <div class="dyn-item"><div class="dyn-dot dd-6"></div><div class="dyn-text"><strong>TTL</strong> — auto-delete items after timestamp. Free.</div></div>
+        <div class="dyn-item"><div class="dyn-dot dd-6"></div><div class="dyn-text"><strong>DAX</strong> — microsecond reads. No code changes. Read-heavy only.</div></div>
+      </div>
+    </div>
+    <div class="chips">
+      <div class="chip ch-yellow">GSI = flexible, add anytime &nbsp;|&nbsp; LSI = must plan at creation</div>
+      <div class="chip ch-blue">Streams → Lambda = event-driven architecture on data changes</div>
+      <div class="chip ch-green">TTL = free auto-deletion, great for sessions and temp data</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SPECIAL DATABASES ── -->
+<div class="svc-section">
+  <div class="svc-header sh-purple">
+    <div class="svc-icon">🔮</div>
+    <div>
+      <div class="svc-name" style="color:#c084fc">Specialised Databases — One Liner Each</div>
+      <div class="svc-tagline">Know the trigger word for each. 1–2 questions each on the exam.</div>
+    </div>
+    <div class="svc-badge badge-purple">Special Purpose</div>
+  </div>
+  <div class="svc-body">
+    <div class="special-grid">
+      <div class="sp-card sp-neptune">
+        <div class="sp-icon">🕸️</div>
+        <div class="sp-name sn-neptune">Neptune</div>
+        <div class="sp-desc">Graph database. Stores nodes and relationships. Social networks, fraud detection, recommendation engines.</div>
+        <div class="sp-trigger st-neptune">graph • relationships • social network</div>
+      </div>
+      <div class="sp-card sp-qldb">
+        <div class="sp-icon">📒</div>
+        <div class="sp-name sn-qldb">QLDB</div>
+        <div class="sp-desc">Quantum Ledger Database. Immutable, cryptographically verifiable transaction log. Cannot alter history.</div>
+        <div class="sp-trigger st-qldb">immutable • cryptographic • audit trail</div>
+      </div>
+      <div class="sp-card sp-timestream">
+        <div class="sp-icon">📈</div>
+        <div class="sp-name sn-timestream">Timestream</div>
+        <div class="sp-desc">Time series database. Optimised for timestamped data. IoT sensors, app metrics, clickstreams.</div>
+        <div class="sp-trigger st-timestream">time series • IoT • sensor data</div>
+      </div>
+      <div class="sp-card sp-docdb">
+        <div class="sp-icon">📄</div>
+        <div class="sp-name sn-docdb">DocumentDB</div>
+        <div class="sp-desc">MongoDB-compatible managed document database. JSON documents, flexible schema.</div>
+        <div class="sp-trigger st-docdb">MongoDB • JSON documents</div>
+      </div>
+      <div class="sp-card sp-keyspaces">
+        <div class="sp-icon">🗂️</div>
+        <div class="sp-name sn-keyspaces">Keyspaces</div>
+        <div class="sp-desc">Apache Cassandra-compatible managed wide-column store. Migrate Cassandra workloads to AWS.</div>
+        <div class="sp-trigger st-keyspaces">Cassandra • wide-column</div>
+      </div>
+      <div class="sp-card sp-redshift">
+        <div class="sp-icon">🏭</div>
+        <div class="sp-name sn-redshift">Redshift</div>
+        <div class="sp-desc">Data warehouse for OLAP. Columnar storage, MPP. Petabyte-scale analytics. Not for transactions.</div>
+        <div class="sp-trigger st-redshift">data warehouse • OLAP • petabyte analytics</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── COMPARISON TABLE ── -->
+<div class="compare-wrapper">
+  <div class="section-title">📊 All Databases at a Glance</div>
+  <table>
+    <thead>
+      <tr><th>Database</th><th>Type</th><th>Use Case</th><th>Scale</th><th>Key Trigger</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="svc-label" style="color:#38bdf8">RDS</span></td><td>SQL (relational)</td><td>Standard transactional apps</td><td>Up to 64TB</td><td>MySQL / Postgres / Oracle managed</td></tr>
+      <tr><td><span class="svc-label" style="color:#fb923c">Aurora</span></td><td>SQL (relational)</td><td>High performance, HA</td><td>128TB auto</td><td>Fastest failover / highest performance SQL</td></tr>
+      <tr><td><span class="svc-label" style="color:#fbbf24">DynamoDB</span></td><td>NoSQL key-value</td><td>Any scale, serverless</td><td>Unlimited</td><td>Serverless NoSQL / millisecond reads</td></tr>
+      <tr><td><span class="svc-label" style="color:#f87171">Redshift</span></td><td>Data warehouse</td><td>Analytics, reporting</td><td>Petabytes</td><td>OLAP / data warehouse / analytics</td></tr>
+      <tr><td><span class="svc-label" style="color:#c084fc">Neptune</span></td><td>Graph</td><td>Relationships, social</td><td>Billions of edges</td><td>Graph / social network / relationships</td></tr>
+      <tr><td><span class="svc-label" style="color:#38bdf8">QLDB</span></td><td>Ledger</td><td>Immutable audit logs</td><td>Serverless</td><td>Immutable / cryptographic / audit</td></tr>
+      <tr><td><span class="svc-label" style="color:#34d399">Timestream</span></td><td>Time series</td><td>IoT, metrics</td><td>Trillions/day</td><td>Time series / IoT sensors</td></tr>
+      <tr><td><span class="svc-label" style="color:#fbbf24">DocumentDB</span></td><td>Document</td><td>JSON, MongoDB migrate</td><td>Auto</td><td>MongoDB / JSON documents</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── EXAM SCENARIOS ── -->
+<div class="section-title">🎯 Exam Scenario Quick-Fire</div>
+<div class="scenarios-grid">
+  <div class="sc-card"><div class="sc-label">Scenario 1</div><div class="sc-q">"RDS getting overwhelmed with analytics read queries"</div><div class="sc-a">→ Add Read Replica</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 2</div><div class="sc-q">"RDS needs to automatically survive an AZ failure"</div><div class="sc-a">→ Enable Multi-AZ</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 3</div><div class="sc-q">"Lambda functions causing too many RDS connections"</div><div class="sc-a">→ RDS Proxy</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 4</div><div class="sc-q">"Need SQL database with failover in under 30 seconds"</div><div class="sc-a">→ Aurora Multi-AZ</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 5</div><div class="sc-q">"Global app needs SQL database with &lt;1s cross-region replication"</div><div class="sc-a">→ Aurora Global Database</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 6</div><div class="sc-q">"DynamoDB needs microsecond response times"</div><div class="sc-a">→ DAX</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 7</div><div class="sc-q">"Social network storing complex user-friend-interest relationships"</div><div class="sc-a">→ Neptune</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 8</div><div class="sc-q">"Financial company needs unalterable transaction history"</div><div class="sc-a">→ QLDB</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 9</div><div class="sc-q">"Company running petabyte analytics queries on historical sales data"</div><div class="sc-a">→ Redshift</div></div>
+</div>
+
+<!-- ── MEMORY AID ── -->
+<div class="memory-box">
+  <div class="section-title" style="text-align:left; margin-bottom:4px;">🧠 Memory Aid — One Trigger Per Database</div>
+  <div style="font-size:0.78rem; color:#6b7280; margin-bottom:4px;">See this word in a question → immediately think of this database</div>
+  <div class="memory-grid">
+    <div class="memory-item"><span class="memory-emoji">🛡️</span><div class="memory-name" style="color:#38bdf8">Multi-AZ</div><div class="memory-hint">Failover HA survive AZ failure</div></div>
+    <div class="memory-item"><span class="memory-emoji">📖</span><div class="memory-name" style="color:#34d399">Read Replica</div><div class="memory-hint">Read traffic analytics reporting</div></div>
+    <div class="memory-item"><span class="memory-emoji">⚡</span><div class="memory-name" style="color:#fb923c">Aurora</div><div class="memory-hint">30s failover 128TB 6 copies</div></div>
+    <div class="memory-item"><span class="memory-emoji">🕸️</span><div class="memory-name" style="color:#c084fc">Neptune</div><div class="memory-hint">Graph relationships social network</div></div>
+    <div class="memory-item"><span class="memory-emoji">📒</span><div class="memory-name" style="color:#38bdf8">QLDB</div><div class="memory-hint">Immutable cryptographic ledger</div></div>
+    <div class="memory-item"><span class="memory-emoji">🏭</span><div class="memory-name" style="color:#f87171">Redshift</div><div class="memory-hint">OLAP data warehouse petabytes</div></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

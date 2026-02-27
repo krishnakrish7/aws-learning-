@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Visual Guides</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050a14;
+    --surface: #0a1120;
+    --border: #1a2740;
+    --accent1: #00d4ff;
+    --accent2: #7b61ff;
+    --accent3: #00ff9d;
+    --text: #e2eaf8;
+    --muted: #4a5a78;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID BG ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── GLOW ── */
+  .glow-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .glow-orb-1 {
+    width: 400px; height: 400px;
+    background: rgba(0,212,255,0.06);
+    top: -100px; left: -100px;
+  }
+  .glow-orb-2 {
+    width: 350px; height: 350px;
+    background: rgba(123,97,255,0.06);
+    bottom: 100px; right: -100px;
+  }
+
+  /* ── WRAPPER ── */
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 16px 60px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 48px 0 36px;
+    text-align: center;
+  }
+
+  .header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,212,255,0.08);
+    border: 1px solid rgba(0,212,255,0.25);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--accent1);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .header-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent1);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 12px;
+  }
+
+  h1 span {
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-sub {
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 32px;
+    justify-content: center;
+  }
+
+  .stat-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  .stat-pill .num {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── CARDS ── */
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: transform 0.2s, border-color 0.2s, background 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+    border-radius: 16px;
+  }
+
+  .card:active {
+    transform: scale(0.98);
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: var(--card-color, var(--accent1));
+    background: rgba(255,255,255,0.02);
+  }
+
+  .card:hover::before {
+    opacity: 1;
+    background: radial-gradient(ellipse at left, rgba(var(--card-rgb), 0.05), transparent 70%);
+  }
+
+  /* Card color themes */
+  .card-blue   { --card-color: #00d4ff; --card-rgb: 0,212,255; }
+  .card-purple { --card-color: #7b61ff; --card-rgb: 123,97,255; }
+  .card-green  { --card-color: #00ff9d; --card-rgb: 0,255,157; }
+  .card-orange { --card-color: #ff9640; --card-rgb: 255,150,64; }
+  .card-pink   { --card-color: #ff61d8; --card-rgb: 255,97,216; }
+  .card-yellow { --card-color: #ffd460; --card-rgb: 255,212,96; }
+
+  .card-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    border: 1px solid;
+  }
+
+  .card-blue   .card-icon { background: rgba(0,212,255,0.1);   border-color: rgba(0,212,255,0.3); }
+  .card-purple .card-icon { background: rgba(123,97,255,0.1);  border-color: rgba(123,97,255,0.3); }
+  .card-green  .card-icon { background: rgba(0,255,157,0.1);   border-color: rgba(0,255,157,0.3); }
+  .card-orange .card-icon { background: rgba(255,150,64,0.1);  border-color: rgba(255,150,64,0.3); }
+  .card-pink   .card-icon { background: rgba(255,97,216,0.1);  border-color: rgba(255,97,216,0.3); }
+  .card-yellow .card-icon { background: rgba(255,212,96,0.1);  border-color: rgba(255,212,96,0.3); }
+
+  .card-body { flex: 1; min-width: 0; }
+
+  .card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-blue   .card-title { color: #00d4ff; }
+  .card-purple .card-title { color: #7b61ff; }
+  .card-green  .card-title { color: #00ff9d; }
+  .card-orange .card-title { color: #ff9640; }
+  .card-pink   .card-title { color: #ff61d8; }
+  .card-yellow .card-title { color: #ffd460; }
+
+  .card-desc {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .card-arrow {
+    color: var(--muted);
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    transition: transform 0.2s, color 0.2s;
+  }
+
+  .card:hover .card-arrow {
+    transform: translateX(3px);
+    color: var(--card-color);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  footer p {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    line-height: 1.8;
+  }
+
+  footer span {
+    color: var(--accent1);
+  }
+
+  /* ── ANIMATION ── */
+  .card {
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .card:nth-child(1) { animation-delay: 0.05s; }
+  .card:nth-child(2) { animation-delay: 0.10s; }
+  .card:nth-child(3) { animation-delay: 0.15s; }
+  .card:nth-child(4) { animation-delay: 0.20s; }
+  .card:nth-child(5) { animation-delay: 0.25s; }
+  .card:nth-child(6) { animation-delay: 0.30s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  header {
+    animation: fadeUp 0.4s ease both;
+  }
+</style>
+</head>
+<body>
+
+<div class="glow-orb glow-orb-1"></div>
+<div class="glow-orb glow-orb-2"></div>
+
+<div class="wrapper">
+
+  <header>
+    <div class="header-badge">AWS Visual Library</div>
+    <h1>Cloud <span>Architecture</span><br>Visual Guides</h1>
+    <p class="header-sub">Interactive diagrams for core AWS services.<br>Tap any guide to explore.</p>
+  </header>
+
+  <div class="stats-row">
+    <div class="stat-pill"><span class="num">6</span> Guides</div>
+    <div class="stat-pill"><span class="num">∞</span> Concepts</div>
+    <div class="stat-pill">📱 Mobile Ready</div>
+  </div>
+
+  <div class="section-label">All Guides</div>
+
+  <div class="cards">
+
+    <a href="aws_vpc_deep_dive.html" class="card card-blue">
+      <div class="card-icon">🌐</div>
+      <div class="card-body">
+        <div class="card-title">VPC Deep Dive</div>
+        <div class="card-desc">Subnets, route tables, IGW, NAT, security groups & NACLs</div>
+      </div>
+      <div class="card-arrow">›</div>
+    </a>
+
+    <a href="aws_security_layers.html" class="card card-purple">
+      <div class="card-icon">🔐</div>
+      <div class="card-body">
+        <div class="card-title">Security Layers</div>
+        <div class="card-desc">IAM, KMS, Shield, WAF, GuardDuty & defence-in-depth</div>
+      </div>
+      <div class="card-arrow">›</div>
+    </a>
+
+    <a href="aws_databases_deep_dive.html" class="card card-green">
+      <div class="card-icon">🗄️</div>
+      <div class="card-body">
+        <div class="card-title">Databases Deep Dive</div>
+        <div class="card-desc">RDS, DynamoDB, Aurora, ElastiCache & decision trees</div>
+      </div>
+      <div class="card-arrow">›</div>
+    </a>
+
+    <a href="aws_storage_services.html" class="card card-orange">
+      <div class="card-icon">💾</div>
+      <div class="card-body">
+        <div class="card-title">Storage Services</div>
+        <div class="card-desc">S3, EBS, EFS, Glacier & storage class comparisons</div>
+      </div>
+      <div class="card-arrow">›</div>
+    </a>
+
+    <a href="aws_ha_loadbalancing_autoscaling.html" class="card card-pink">
+      <div class="card-icon">⚖️</div>
+      <div class="card-body">
+        <div class="card-title">HA, Load Balancing & Auto Scaling</div>
+        <div class="card-desc">ALB, NLB, ASG, multi-AZ & fault-tolerant patterns</div>
+      </div>
+      <div class="card-arrow">›</div>
+    </a>
+
+    <a href="aws_route53_cloudfront_global.html" class="card card-yellow">
+      <div class="card-icon">🌍</div>
+      <div class="card-body">
+        <div class="card-title">Route 53, CloudFront & Global</div>
+        <div class="card-desc">DNS routing, CDN edge caching & global architecture</div>
+      </div>
+      <div class="card-arrow">›</div>
+    </a>
+
+  </div>
+
+  <footer>
+    <p>Hosted on <span>AWS S3 + CloudFront</span><br>AWS Visual Guide Series · 2024</p>
+  </footer>
+
+</div>
+</body>
+</html>

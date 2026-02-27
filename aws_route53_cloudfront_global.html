@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Route 53, CloudFront & Global Architecture — Visual Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0a0f1e; color: #fff; min-height: 100vh; padding: 30px 20px; }
+  h1 { text-align: center; font-size: 1.8rem; color: #fff; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #8892a4; font-size: 0.95rem; margin-bottom: 40px; }
+  .section-title { text-align: center; font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin-bottom: 20px; }
+  .wrapper { max-width: 980px; margin: 0 auto; }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow-box { background: #080e1a; border: 1px solid #1e2a3a; border-radius: 16px; padding: 24px; margin-bottom: 36px; }
+  .flow-title { font-size: 0.72rem; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; text-align: center; }
+  .flow-row { display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; }
+  .flow-node { border-radius: 12px; padding: 12px 16px; text-align: center; min-width: 120px; }
+  .fn-user   { background: rgba(100,116,139,0.2); border: 1px solid #4b5563; }
+  .fn-r53    { background: rgba(251,146,60,0.15); border: 1px solid rgba(251,146,60,0.5); }
+  .fn-cf     { background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.5); }
+  .fn-origin { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.5); }
+  .fn-icon { font-size: 1.4rem; margin-bottom: 4px; }
+  .fn-name { font-size: 0.78rem; font-weight: 800; }
+  .fn-user .fn-name   { color: #94a3b8; }
+  .fn-r53 .fn-name    { color: #fb923c; }
+  .fn-cf .fn-name     { color: #c084fc; }
+  .fn-origin .fn-name { color: #34d399; }
+  .fn-desc { font-size: 0.65rem; color: #6b7280; margin-top: 3px; line-height: 1.3; }
+  .flow-arrow { color: #374151; font-size: 1.4rem; padding: 0 8px; }
+  .flow-label { font-size: 0.62rem; color: #4b5563; font-style: italic; text-align: center; margin-top: 4px; }
+
+  /* ── SERVICE SECTIONS ── */
+  .svc-section { margin-bottom: 28px; }
+  .svc-header { display: flex; align-items: center; gap: 14px; padding: 15px 20px; border-radius: 14px 14px 0 0; border-bottom: 2px solid transparent; }
+  .sh-orange { background: rgba(251,146,60,0.15);  border-color: #fb923c; }
+  .sh-purple { background: rgba(168,85,247,0.15);  border-color: #c084fc; }
+  .sh-blue   { background: rgba(14,165,233,0.15);  border-color: #38bdf8; }
+  .sh-green  { background: rgba(16,185,129,0.15);  border-color: #34d399; }
+  .svc-icon { font-size: 1.8rem; }
+  .svc-name { font-size: 1.1rem; font-weight: 800; }
+  .svc-tagline { font-size: 0.76rem; opacity: 0.75; margin-top: 2px; }
+  .svc-badge { margin-left: auto; padding: 3px 12px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
+  .badge-orange { background: rgba(251,146,60,0.3);  color: #fb923c; }
+  .badge-purple { background: rgba(168,85,247,0.3);  color: #c084fc; }
+  .badge-blue   { background: rgba(14,165,233,0.3);  color: #38bdf8; }
+  .badge-green  { background: rgba(16,185,129,0.3);  color: #34d399; }
+  .svc-body { background: #0d1424; border: 1px solid #1e2a3a; border-top: none; border-radius: 0 0 14px 14px; padding: 18px; }
+
+  /* ── ROUTING POLICIES ── */
+  .routing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .rp-card { border-radius: 12px; padding: 14px; }
+  .rp-1 { background: rgba(251,146,60,0.1);  border: 1px solid rgba(251,146,60,0.35); }
+  .rp-2 { background: rgba(251,191,36,0.1);  border: 1px solid rgba(251,191,36,0.35); }
+  .rp-3 { background: rgba(14,165,233,0.1);  border: 1px solid rgba(14,165,233,0.35); }
+  .rp-4 { background: rgba(239,68,68,0.1);   border: 1px solid rgba(239,68,68,0.35); }
+  .rp-5 { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); }
+  .rp-6 { background: rgba(168,85,247,0.1);  border: 1px solid rgba(168,85,247,0.35); }
+  .rp-name { font-size: 0.88rem; font-weight: 800; margin-bottom: 6px; }
+  .rn-1 { color: #fb923c; } .rn-2 { color: #fbbf24; } .rn-3 { color: #38bdf8; }
+  .rn-4 { color: #f87171; } .rn-5 { color: #34d399; } .rn-6 { color: #c084fc; }
+  .rp-desc { font-size: 0.72rem; color: #cbd5e1; line-height: 1.4; margin-bottom: 6px; }
+  .rp-trigger { font-size: 0.68rem; font-weight: 700; padding: 4px 8px; border-radius: 8px; display: inline-block; }
+  .rt-1 { background: rgba(251,146,60,0.2);  color: #fb923c; }
+  .rt-2 { background: rgba(251,191,36,0.2);  color: #fbbf24; }
+  .rt-3 { background: rgba(14,165,233,0.2);  color: #38bdf8; }
+  .rt-4 { background: rgba(239,68,68,0.2);   color: #f87171; }
+  .rt-5 { background: rgba(16,185,129,0.2);  color: #34d399; }
+  .rt-6 { background: rgba(168,85,247,0.2);  color: #c084fc; }
+
+  /* ── RECORD TYPES ── */
+  .records-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px; }
+  .rec-card { border-radius: 10px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 12px; }
+  .rc-alias  { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.35); }
+  .rc-cname  { background: rgba(239,68,68,0.1);   border: 1px solid rgba(239,68,68,0.35); }
+  .rec-badge { padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 800; flex-shrink: 0; }
+  .rb-alias  { background: rgba(16,185,129,0.3);  color: #34d399; }
+  .rb-cname  { background: rgba(239,68,68,0.3);   color: #f87171; }
+  .rec-content { flex: 1; }
+  .rec-title { font-size: 0.82rem; font-weight: 700; margin-bottom: 4px; }
+  .rt-alias { color: #34d399; }
+  .rt-cname { color: #f87171; }
+  .rec-text { font-size: 0.71rem; color: #cbd5e1; line-height: 1.5; }
+
+  /* ── CLOUDFRONT ── */
+  .cf-flow { display: flex; align-items: stretch; gap: 0; margin-bottom: 16px; background: #080e1a; border-radius: 12px; overflow: hidden; border: 1px solid #1e2a3a; }
+  .cf-step { flex: 1; padding: 16px 12px; text-align: center; border-right: 1px solid #1e2a3a; }
+  .cf-step:last-child { border-right: none; }
+  .cs-1 { background: rgba(100,116,139,0.1); }
+  .cs-2 { background: rgba(168,85,247,0.12); }
+  .cs-3 { background: rgba(168,85,247,0.18); }
+  .cs-4 { background: rgba(16,185,129,0.1); }
+  .cs-icon { font-size: 1.4rem; margin-bottom: 6px; }
+  .cs-title { font-size: 0.75rem; font-weight: 700; margin-bottom: 4px; }
+  .cs-1 .cs-title { color: #94a3b8; }
+  .cs-2 .cs-title { color: #c084fc; }
+  .cs-3 .cs-title { color: #c084fc; }
+  .cs-4 .cs-title { color: #34d399; }
+  .cs-desc { font-size: 0.66rem; color: #6b7280; line-height: 1.4; }
+  .cs-arrow { display: flex; align-items: center; color: #374151; font-size: 1rem; padding: 0 2px; }
+
+  .cf-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .cc-cf { background: rgba(168,85,247,0.1);  border: 1px solid rgba(168,85,247,0.35); border-radius: 12px; padding: 14px; }
+  .cc-ga { background: rgba(14,165,233,0.1);  border: 1px solid rgba(14,165,233,0.35); border-radius: 12px; padding: 14px; }
+  .cc-title { font-size: 0.9rem; font-weight: 800; margin-bottom: 8px; }
+  .cc-cf .cc-title { color: #c084fc; }
+  .cc-ga .cc-title { color: #38bdf8; }
+  .cc-row { display: flex; gap: 7px; margin-bottom: 5px; align-items: flex-start; }
+  .cc-icon { font-size: 0.8rem; flex-shrink: 0; margin-top: 1px; }
+  .cc-text { font-size: 0.71rem; color: #cbd5e1; line-height: 1.4; }
+  .cc-verdict { margin-top: 8px; padding: 6px 10px; border-radius: 8px; font-size: 0.69rem; font-weight: 700; }
+  .cv-cf { background: rgba(168,85,247,0.2); color: #c084fc; }
+  .cv-ga { background: rgba(14,165,233,0.2); color: #38bdf8; }
+
+  /* ── OAC diagram ── */
+  .oac-box { background: #080e1a; border: 1px solid #1e2a3a; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .oac-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .oac-node { border-radius: 10px; padding: 8px 14px; text-align: center; font-size: 0.75rem; font-weight: 700; }
+  .on-user { background: rgba(100,116,139,0.2); color: #94a3b8; border: 1px solid #4b5563; }
+  .on-cf   { background: rgba(168,85,247,0.2); color: #c084fc; border: 1px solid rgba(168,85,247,0.5); }
+  .on-s3p  { background: rgba(239,68,68,0.2);  color: #f87171; border: 1px solid rgba(239,68,68,0.5); }
+  .on-s3ok { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.5); }
+  .on-arrow { color: #374151; font-size: 1rem; }
+  .on-x    { color: #f87171; font-size: 1.2rem; font-weight: 800; }
+  .on-check { color: #34d399; font-size: 1.2rem; }
+  .oac-label { font-size: 0.65rem; color: #6b7280; text-align: center; }
+
+  /* ── SECURITY ── */
+  .sec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+  .sec-card { border-radius: 10px; padding: 13px; }
+  .sc-geo  { background: rgba(239,68,68,0.1);   border: 1px solid rgba(239,68,68,0.35); }
+  .sc-url  { background: rgba(251,191,36,0.1);  border: 1px solid rgba(251,191,36,0.35); }
+  .sc-cook { background: rgba(14,165,233,0.1);  border: 1px solid rgba(14,165,233,0.35); }
+  .sec-title { font-size: 0.82rem; font-weight: 800; margin-bottom: 6px; }
+  .st-geo  { color: #f87171; } .st-url { color: #fbbf24; } .st-cook { color: #38bdf8; }
+  .sec-text { font-size: 0.71rem; color: #cbd5e1; line-height: 1.4; margin-bottom: 6px; }
+  .sec-use  { font-size: 0.67rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; display: inline-block; }
+  .su-geo  { background: rgba(239,68,68,0.2);   color: #f87171; }
+  .su-url  { background: rgba(251,191,36,0.2);  color: #fbbf24; }
+  .su-cook { background: rgba(14,165,233,0.2);  color: #38bdf8; }
+
+  /* ── TRAP BOX ── */
+  .trap-box { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; }
+  .trap-title { font-size: 0.76rem; font-weight: 700; color: #f87171; margin-bottom: 10px; }
+  .trap-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .trap-col { }
+  .trap-label { font-size: 0.7rem; font-weight: 700; color: #fbbf24; margin-bottom: 6px; }
+  .trap-row-item { display: flex; gap: 8px; margin-bottom: 5px; align-items: flex-start; }
+  .trap-keyword { font-size: 0.69rem; color: #94a3b8; }
+  .trap-answer  { font-size: 0.69rem; font-weight: 700; color: #34d399; }
+
+  /* ── CHIPS ── */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip { padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+  .ch-orange { background: rgba(251,146,60,0.2);  color: #fb923c;  border: 1px solid rgba(251,146,60,0.3); }
+  .ch-green  { background: rgba(16,185,129,0.2);  color: #34d399;  border: 1px solid rgba(16,185,129,0.3); }
+  .ch-blue   { background: rgba(14,165,233,0.2);  color: #38bdf8;  border: 1px solid rgba(14,165,233,0.3); }
+  .ch-purple { background: rgba(168,85,247,0.2);  color: #c084fc;  border: 1px solid rgba(168,85,247,0.3); }
+  .ch-yellow { background: rgba(251,191,36,0.2);  color: #fbbf24;  border: 1px solid rgba(251,191,36,0.3); }
+  .ch-red    { background: rgba(239,68,68,0.2);   color: #f87171;  border: 1px solid rgba(239,68,68,0.3); }
+
+  /* ── COMPARISON TABLE ── */
+  .compare-wrapper { margin-bottom: 36px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  th { background: #1e2a3a; color: #94a3b8; font-weight: 600; padding: 10px 12px; text-align: left; border-bottom: 2px solid #2d3748; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1a2332; vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr:last-child td { border-bottom: none; }
+  .yes { color: #34d399; font-weight: 700; }
+  .no  { color: #f87171; }
+  .svc-label { font-weight: 700; color: #e2e8f0; }
+
+  /* ── SCENARIOS ── */
+  .scenarios-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 36px; }
+  .sc-card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 14px; border-left: 3px solid #f59e0b; }
+  .sc-label { font-size: 0.63rem; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px; }
+  .sc-q { font-size: 0.73rem; color: #9ca3af; margin-bottom: 9px; line-height: 1.5; font-style: italic; }
+  .sc-a { font-size: 0.78rem; color: #34d399; font-weight: 700; }
+
+  /* ── MEMORY AID ── */
+  .memory-box { background: #0d1424; border: 1px solid #1e2a3a; border-radius: 16px; padding: 24px 26px; margin-bottom: 10px; }
+  .memory-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 14px; }
+  .memory-item { text-align: center; }
+  .memory-emoji { font-size: 1.7rem; display: block; margin-bottom: 5px; }
+  .memory-name { font-size: 0.68rem; font-weight: 800; color: #e2e8f0; }
+  .memory-hint { font-size: 0.59rem; color: #6b7280; margin-top: 3px; line-height: 1.3; }
+
+  @media (max-width: 700px) {
+    .routing-grid { grid-template-columns: 1fr 1fr; }
+    .records-grid, .cf-compare, .trap-compare { grid-template-columns: 1fr; }
+    .sec-grid { grid-template-columns: 1fr; }
+    .scenarios-grid { grid-template-columns: 1fr; }
+    .memory-grid { grid-template-columns: repeat(3, 1fr); }
+    .cf-flow { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🌍 Route 53, CloudFront & Global Architecture</h1>
+<p class="subtitle">Visual Guide — AWS Solutions Architect Associate • Lesson 5</p>
+
+<div class="wrapper">
+
+<!-- ── FLOW DIAGRAM ── -->
+<div class="flow-box">
+  <div class="flow-title">How a Global Request Travels</div>
+  <div class="flow-row">
+    <div>
+      <div class="flow-node fn-user"><div class="fn-icon">👤</div><div class="fn-name">User</div><div class="fn-desc">Types example.com</div></div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div>
+      <div class="flow-node fn-r53"><div class="fn-icon">🔀</div><div class="fn-name">Route 53</div><div class="fn-desc">Resolves DNS → routes to best endpoint</div></div>
+      <div class="flow-label">Routing policy decides where</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div>
+      <div class="flow-node fn-cf"><div class="fn-icon">⚡</div><div class="fn-name">CloudFront Edge</div><div class="fn-desc">Nearest of 400+ locations</div></div>
+      <div class="flow-label">Cache hit → instant. Miss → fetch origin</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div>
+      <div class="flow-node fn-origin"><div class="fn-icon">🏗️</div><div class="fn-name">Origin</div><div class="fn-desc">S3 / ALB / EC2 / Lambda</div></div>
+      <div class="flow-label">Only hit on cache miss</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ROUTE 53 ── -->
+<div class="svc-section">
+  <div class="svc-header sh-orange">
+    <div class="svc-icon">🔀</div>
+    <div>
+      <div class="svc-name" style="color:#fb923c">Route 53 — DNS & Traffic Routing</div>
+      <div class="svc-tagline">Translates domain names to IPs. Routes traffic intelligently. Checks health of endpoints.</div>
+    </div>
+    <div class="svc-badge badge-orange">DNS + Routing</div>
+  </div>
+  <div class="svc-body">
+
+    <!-- Record Types -->
+    <div style="font-size:0.78rem; font-weight:700; color:#fb923c; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">📌 CNAME vs Alias — #1 Exam Trap</div>
+    <div class="records-grid">
+      <div class="rec-card rc-alias">
+        <div class="rec-badge rb-alias">ALIAS ⭐</div>
+        <div class="rec-content">
+          <div class="rec-title rt-alias">Use at ROOT domain (example.com)</div>
+          <div class="rec-text">✅ Works at zone apex (example.com)<br>✅ Free for AWS resources<br>✅ Supports health checks<br>✅ Points to: ALB, CloudFront, S3, API GW<br>❌ Cannot point to EC2 DNS name</div>
+        </div>
+      </div>
+      <div class="rec-card rc-cname">
+        <div class="rec-badge rb-cname">CNAME</div>
+        <div class="rec-content">
+          <div class="rec-title rt-cname">Use at SUBDOMAINS only (www.example.com)</div>
+          <div class="rec-text">❌ Cannot use at zone apex (example.com)<br>⚠️ Costs money per DNS query<br>❌ No health check support<br>✅ Can point to any domain name<br>✅ Works for non-AWS resources</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Routing Policies -->
+    <div style="font-size:0.78rem; font-weight:700; color:#fb923c; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px; margin-top:16px;">🔀 6 Routing Policies — Know All Cold</div>
+    <div class="routing-grid">
+      <div class="rp-card rp-1">
+        <div class="rp-name rn-1">1. Simple</div>
+        <div class="rp-desc">One resource. No health checks. Multiple values → client picks randomly.</div>
+        <div class="rp-trigger rt-1">Single resource, no routing logic</div>
+      </div>
+      <div class="rp-card rp-2">
+        <div class="rp-name rn-2">2. Weighted</div>
+        <div class="rp-desc">Send X% to resource A, Y% to resource B. A/B testing. Gradual deployments.</div>
+        <div class="rp-trigger rt-2">A/B test • 90/10 traffic split</div>
+      </div>
+      <div class="rp-card rp-3">
+        <div class="rp-name rn-3">3. Latency-Based</div>
+        <div class="rp-desc">Routes to AWS region with LOWEST latency for that user. About speed, not location.</div>
+        <div class="rp-trigger rt-3">Fastest • lowest latency • best performance</div>
+      </div>
+      <div class="rp-card rp-4">
+        <div class="rp-name rn-4">4. Failover</div>
+        <div class="rp-desc">Active-Passive. Primary gets all traffic. Health check fails → routes to secondary.</div>
+        <div class="rp-trigger rt-4">Disaster recovery • primary/secondary</div>
+      </div>
+      <div class="rp-card rp-5">
+        <div class="rp-name rn-5">5. Geolocation</div>
+        <div class="rp-desc">Routes based on WHERE user IS geographically. Country or continent. Compliance/localisation.</div>
+        <div class="rp-trigger rt-5">User's country • language • legal region</div>
+      </div>
+      <div class="rp-card rp-6">
+        <div class="rp-name rn-6">6. Multi-Value</div>
+        <div class="rp-desc">Returns up to 8 healthy IPs. Like Simple but WITH health checks. Client-side LB.</div>
+        <div class="rp-trigger rt-6">Multiple healthy endpoints • not a substitute for ELB</div>
+      </div>
+    </div>
+
+    <!-- Geolocation vs Latency trap -->
+    <div class="trap-box">
+      <div class="trap-title">⚠️ Most Confused Pair — Geolocation vs Latency-Based</div>
+      <div class="trap-compare">
+        <div class="trap-col">
+          <div class="trap-label">Keywords → Geolocation</div>
+          <div class="trap-row-item"><div class="trap-keyword">"user's country / continent"</div></div>
+          <div class="trap-row-item"><div class="trap-keyword">"language-specific content"</div></div>
+          <div class="trap-row-item"><div class="trap-keyword">"compliance / legal restrictions"</div></div>
+          <div class="trap-row-item"><div class="trap-keyword">"users in Europe see EU content"</div></div>
+        </div>
+        <div class="trap-col">
+          <div class="trap-label">Keywords → Latency-Based</div>
+          <div class="trap-row-item"><div class="trap-keyword">"fastest response" / "lowest latency"</div></div>
+          <div class="trap-row-item"><div class="trap-keyword">"best performance for global users"</div></div>
+          <div class="trap-row-item"><div class="trap-keyword">"route to nearest region automatically"</div></div>
+          <div class="trap-row-item"><div class="trap-keyword">"reduce response time globally"</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="chips">
+      <div class="chip ch-orange">Health checks → Failover routing for automatic DR</div>
+      <div class="chip ch-yellow">Weighted + 0 weight = remove traffic without deleting record</div>
+      <div class="chip ch-green">Always create default record for Geolocation routing</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CLOUDFRONT ── -->
+<div class="svc-section">
+  <div class="svc-header sh-purple">
+    <div class="svc-icon">⚡</div>
+    <div>
+      <div class="svc-name" style="color:#c084fc">CloudFront — Global CDN</div>
+      <div class="svc-tagline">Caches content at 400+ edge locations. Users get content from nearest location.</div>
+    </div>
+    <div class="svc-badge badge-purple">CDN • Edge Caching</div>
+  </div>
+  <div class="svc-body">
+
+    <!-- CF flow -->
+    <div class="cf-flow">
+      <div class="cf-step cs-1"><div class="cs-icon">👤</div><div class="cs-title">User Request</div><div class="cs-desc">User requests content from example.com</div></div>
+      <div class="cs-arrow">→</div>
+      <div class="cf-step cs-2"><div class="cs-icon">📍</div><div class="cs-title">Edge Location</div><div class="cs-desc">Nearest of 400+ global points</div></div>
+      <div class="cs-arrow">→</div>
+      <div class="cf-step cs-3"><div class="cs-icon">💾</div><div class="cs-title">Cache Check</div><div class="cs-desc">HIT → serve instantly<br>MISS → fetch from origin</div></div>
+      <div class="cs-arrow">→</div>
+      <div class="cf-step cs-4"><div class="cs-icon">🏗️</div><div class="cs-title">Origin</div><div class="cs-desc">S3 / ALB / EC2<br>Only on cache miss</div></div>
+    </div>
+
+    <!-- OAC -->
+    <div style="font-size:0.76rem; font-weight:700; color:#c084fc; margin: 14px 0 8px; text-transform:uppercase; letter-spacing:0.5px;">🔒 Origin Access Control (OAC) — S3 Protection</div>
+    <div class="oac-box">
+      <div style="font-size:0.72rem; color:#f87171; font-weight:700; margin-bottom:10px;">❌ WITHOUT OAC — S3 bucket public — anyone can bypass CloudFront</div>
+      <div class="oac-row">
+        <div class="oac-node on-user">👤 User</div>
+        <div class="on-arrow">→</div>
+        <div class="oac-node on-cf">⚡ CloudFront</div>
+        <div class="on-arrow">→</div>
+        <div class="oac-node on-s3p">🪣 S3 (Public)</div>
+        <div style="font-size:0.7rem; color:#6b7280; margin-left:8px;">Also: direct S3 URL works ← bad!</div>
+      </div>
+      <div style="font-size:0.72rem; color:#34d399; font-weight:700; margin: 12px 0 8px;">✅ WITH OAC — S3 private — only CloudFront can read it</div>
+      <div class="oac-row">
+        <div class="oac-node on-user">👤 User</div>
+        <div class="on-arrow">→</div>
+        <div class="oac-node on-cf">⚡ CloudFront + OAC</div>
+        <div class="on-arrow">→</div>
+        <div class="oac-node on-s3ok">🔒 S3 (Private)</div>
+        <div class="on-check">✅</div>
+      </div>
+      <div class="oac-row">
+        <div class="oac-node on-user">👤 User</div>
+        <div class="on-arrow">→</div>
+        <div style="font-size:0.75rem; color:#f87171; font-weight:700;">Direct S3 URL</div>
+        <div class="on-x">✗</div>
+        <div style="font-size:0.72rem; color:#6b7280;">Access Denied</div>
+      </div>
+    </div>
+
+    <!-- Security -->
+    <div style="font-size:0.76rem; font-weight:700; color:#c084fc; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">🛡️ CloudFront Security Features</div>
+    <div class="sec-grid">
+      <div class="sec-card sc-geo">
+        <div class="sec-title st-geo">🌍 Geo Restriction</div>
+        <div class="sec-text">Block entire countries from accessing your CloudFront distribution. Allow-list or block-list approach.</div>
+        <div class="sec-use su-geo">Block a country entirely</div>
+      </div>
+      <div class="sec-card sc-url">
+        <div class="sec-title st-url">🔗 Signed URL</div>
+        <div class="sec-text">Grants access to ONE specific file. Has expiry time. Used for paid/premium individual content.</div>
+        <div class="sec-use su-url">One file • paid download</div>
+      </div>
+      <div class="sec-card sc-cook">
+        <div class="sec-title st-cook">🍪 Signed Cookie</div>
+        <div class="sec-text">Grants access to MULTIPLE files. Premium membership accessing entire library of content.</div>
+        <div class="sec-use su-cook">Multiple files • subscription</div>
+      </div>
+    </div>
+
+    <!-- CF vs GA -->
+    <div style="font-size:0.76rem; font-weight:700; color:#c084fc; margin: 14px 0 10px; text-transform:uppercase; letter-spacing:0.5px;">⚠️ CloudFront vs Global Accelerator — Most Confused Pair</div>
+    <div class="cf-compare">
+      <div class="cc-cf">
+        <div class="cc-title">⚡ CloudFront (CDN)</div>
+        <div class="cc-row"><div class="cc-icon">✅</div><div class="cc-text"><strong>Caches content</strong> at edge locations</div></div>
+        <div class="cc-row"><div class="cc-icon">✅</div><div class="cc-text">HTTP/HTTPS only</div></div>
+        <div class="cc-row"><div class="cc-icon">✅</div><div class="cc-text">400+ edge locations globally</div></div>
+        <div class="cc-row"><div class="cc-icon">❌</div><div class="cc-text">No static IP (DNS name only)</div></div>
+        <div class="cc-row"><div class="cc-icon">❌</div><div class="cc-text">Not for TCP/UDP non-HTTP</div></div>
+        <div class="cc-verdict cv-cf">Trigger: cache • CDN • static content • HTTP • S3 website</div>
+      </div>
+      <div class="cc-ga">
+        <div class="cc-title">🌐 Global Accelerator</div>
+        <div class="cc-row"><div class="cc-icon">✅</div><div class="cc-text">Routes through <strong>AWS private network</strong></div></div>
+        <div class="cc-row"><div class="cc-icon">✅</div><div class="cc-text">Any protocol — TCP, UDP, HTTP</div></div>
+        <div class="cc-row"><div class="cc-icon">✅</div><div class="cc-text"><strong>2 static Anycast IPs</strong> — never change</div></div>
+        <div class="cc-row"><div class="cc-icon">✅</div><div class="cc-text">Failover in under 30 seconds</div></div>
+        <div class="cc-row"><div class="cc-icon">❌</div><div class="cc-text">Does NOT cache content</div></div>
+        <div class="cc-verdict cv-ga">Trigger: static IP • TCP/UDP • gaming • IoT • non-HTTP</div>
+      </div>
+    </div>
+    <div class="chips">
+      <div class="chip ch-purple">TTL = how long content is cached (default 24hrs)</div>
+      <div class="chip ch-red">Cache invalidation = force refresh before TTL expires (costs money)</div>
+      <div class="chip ch-green">Signed URL = 1 file &nbsp;|&nbsp; Signed Cookie = many files</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── COMPARISON TABLE ── -->
+<div class="compare-wrapper">
+  <div class="section-title">📊 Route 53 Routing Policies — Quick Reference</div>
+  <table>
+    <thead>
+      <tr><th>Policy</th><th>How it routes</th><th>Health Checks?</th><th>Key Trigger</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="svc-label" style="color:#fb923c">Simple</span></td><td>Single resource or random from multiple</td><td><span class="no">✗ No</span></td><td>One resource, no logic needed</td></tr>
+      <tr><td><span class="svc-label" style="color:#fbbf24">Weighted</span></td><td>% of traffic to each endpoint</td><td><span class="yes">✓ Yes</span></td><td>A/B testing, gradual rollout</td></tr>
+      <tr><td><span class="svc-label" style="color:#38bdf8">Latency-Based</span></td><td>Lowest network latency region</td><td><span class="yes">✓ Yes</span></td><td>"fastest" / "lowest latency"</td></tr>
+      <tr><td><span class="svc-label" style="color:#f87171">Failover</span></td><td>Primary → secondary on health fail</td><td><span class="yes">✓ Required</span></td><td>DR / active-passive</td></tr>
+      <tr><td><span class="svc-label" style="color:#34d399">Geolocation</span></td><td>User's geographic location</td><td><span class="yes">✓ Yes</span></td><td>Country / language / compliance</td></tr>
+      <tr><td><span class="svc-label" style="color:#c084fc">Multi-Value</span></td><td>Up to 8 healthy IPs returned</td><td><span class="yes">✓ Yes</span></td><td>Multiple healthy endpoints</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── EXAM SCENARIOS ── -->
+<div class="section-title">🎯 Exam Scenario Quick-Fire</div>
+<div class="scenarios-grid">
+  <div class="sc-card"><div class="sc-label">Scenario 1</div><div class="sc-q">"Send 10% of traffic to new app version, 90% to old"</div><div class="sc-a">→ Weighted Routing (10/90 weights)</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 2</div><div class="sc-q">"Route Singapore users to whichever AWS region responds fastest"</div><div class="sc-a">→ Latency-Based Routing</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 3</div><div class="sc-q">"Show EU users EU content, US users US content for compliance"</div><div class="sc-a">→ Geolocation Routing</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 4</div><div class="sc-q">"Point root domain example.com to an ALB"</div><div class="sc-a">→ Alias Record (not CNAME)</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 5</div><div class="sc-q">"Primary region fails — automatically route to DR region"</div><div class="sc-a">→ Route 53 Failover Routing + Health Check</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 6</div><div class="sc-q">"Users bypass CloudFront and access S3 directly"</div><div class="sc-a">→ Make S3 private + Origin Access Control (OAC)</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 7</div><div class="sc-q">"Paid video streaming — grant access to single video file with expiry"</div><div class="sc-a">→ CloudFront Signed URL</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 8</div><div class="sc-q">"Premium membership accessing entire library of content privately"</div><div class="sc-a">→ CloudFront Signed Cookie</div></div>
+  <div class="sc-card"><div class="sc-label">Scenario 9</div><div class="sc-q">"Gaming app needs static IP and low-latency global routing for UDP"</div><div class="sc-a">→ Global Accelerator</div></div>
+</div>
+
+<!-- ── MEMORY AID ── -->
+<div class="memory-box">
+  <div class="section-title" style="text-align:left; margin-bottom:4px;">🧠 Memory Aid</div>
+  <div style="font-size:0.78rem; color:#6b7280; margin-bottom:4px;">One trigger per concept</div>
+  <div class="memory-grid">
+    <div class="memory-item"><span class="memory-emoji">⚖️</span><div class="memory-name" style="color:#fbbf24">Weighted</div><div class="memory-hint">A/B test % split</div></div>
+    <div class="memory-item"><span class="memory-emoji">⚡</span><div class="memory-name" style="color:#38bdf8">Latency</div><div class="memory-hint">Fastest region speed</div></div>
+    <div class="memory-item"><span class="memory-emoji">🌍</span><div class="memory-name" style="color:#34d399">Geolocation</div><div class="memory-hint">WHERE user IS country</div></div>
+    <div class="memory-item"><span class="memory-emoji">🔁</span><div class="memory-name" style="color:#f87171">Failover</div><div class="memory-hint">Primary fails → secondary DR</div></div>
+    <div class="memory-item"><span class="memory-emoji">🔒</span><div class="memory-name" style="color:#c084fc">OAC</div><div class="memory-hint">S3 private CloudFront only</div></div>
+    <div class="memory-item"><span class="memory-emoji">🌐</span><div class="memory-name" style="color:#38bdf8">Global Accel</div><div class="memory-hint">Static IP TCP UDP gaming</div></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
